@@ -21,6 +21,7 @@ public class RolePanel extends JPanel {
         box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
         box.setBackground(MainFrame.MAIN_BG);
 
+            
         JLabel title = new JLabel("Select Role", SwingConstants.CENTER);
         title.setFont(new Font("Segoe UI", Font.BOLD, 28));
         title.setAlignmentX(Component.CENTER_ALIGNMENT);

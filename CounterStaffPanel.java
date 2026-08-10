@@ -4,8 +4,11 @@ import java.awt.*;
 public class CounterStaffPanel extends JPanel {
     private JComboBox<Integer> comboCounters;
     private JLabel lblServingTicket, lblPassengerName, lblFlight, lblBaggage;
+    private MainFrame mainFrame;
 
-    public CounterStaffPanel() {
+    public CounterStaffPanel(MainFrame frame) {
+        this.mainFrame = frame;
+            
         setLayout(new BorderLayout(15, 15));
         setBackground(MainFrame.MAIN_BG);
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -64,7 +67,23 @@ public class CounterStaffPanel extends JPanel {
         add(infoPanel, BorderLayout.CENTER);
         add(btnPanel, BorderLayout.SOUTH);
 
-        comboCounters.addActionListener(e -> refreshDisplay());
+        comboCounters.addActionListener(e -> {
+            refreshDisplay();
+
+            int counter = (Integer) comboCounters.getSelectedItem();
+            String username = mainFrame.getCurrentUsername();
+
+            if (username != null && !username.isEmpty()) {
+                new Thread(() -> {
+                    try {
+                        FirebaseHelper.setStaffOnline(username, counter);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }).start();
+            }
+        });
+        
         btnCallNext.addActionListener(e -> {
             int counter = (Integer) comboCounters.getSelectedItem();
             QueueManager.getInstance().callNextPassenger(counter);

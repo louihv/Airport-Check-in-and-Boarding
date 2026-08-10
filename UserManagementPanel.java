@@ -1,22 +1,8 @@
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.GridLayout;
-
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.JTextField;
+import java.awt.*;
+import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
 public class UserManagementPanel extends JPanel {
-    private DefaultTableModel userModel;
     private DefaultTableModel onlineModel;
 
     public UserManagementPanel() {
@@ -31,7 +17,7 @@ public class UserManagementPanel extends JPanel {
         JPanel center = new JPanel(new GridLayout(1, 2, 20, 0));
         center.setOpaque(false);
 
-        // Register new user
+        // ===== Register New User =====
         JPanel left = new JPanel(new BorderLayout(0, 10));
         left.setOpaque(false);
         left.setBorder(BorderFactory.createTitledBorder("Register New User"));
@@ -61,29 +47,32 @@ public class UserManagementPanel extends JPanel {
         left.add(form, BorderLayout.CENTER);
         left.add(btnRegister, BorderLayout.SOUTH);
 
-        // Online staff table
+        // ===== Online Staff Table =====
         JPanel right = new JPanel(new BorderLayout(0, 10));
         right.setOpaque(false);
         right.setBorder(BorderFactory.createTitledBorder("Online Staff / Counter Assignment"));
 
         String[] cols = {"Username", "Role", "Counter", "Status"};
         onlineModel = new DefaultTableModel(cols, 0);
-        // sample data
-        onlineModel.addRow(new Object[]{"staff01", "STAFF", "Counter 3", "Online"});
-        onlineModel.addRow(new Object[]{"staff02", "STAFF", "Counter 1", "Online"});
-        onlineModel.addRow(new Object[]{"admin", "ADMIN", "-", "Online"});
 
         JTable table = new JTable(onlineModel);
         right.add(new JScrollPane(table), BorderLayout.CENTER);
+
+        // Optional refresh button
+        JButton btnRefresh = new JButton("Refresh Online Staff");
+        btnRefresh.setFocusPainted(false);
+        right.add(btnRefresh, BorderLayout.SOUTH);
 
         center.add(left);
         center.add(right);
         add(center, BorderLayout.CENTER);
 
+        // ===== Register button action =====
         btnRegister.addActionListener(e -> {
             String u = txtUser.getText().trim();
             String p = new String(txtPass.getPassword());
             String role = (String) cmbRole.getSelectedItem();
+            String userRole = (String) cmbRole.getSelectedItem();
             String counter = txtCounter.getText().trim();
 
             if (u.isEmpty() || p.isEmpty()) {
@@ -91,17 +80,41 @@ public class UserManagementPanel extends JPanel {
                 return;
             }
 
-            // for demo just add to online table
-            onlineModel.addRow(new Object[]{
-                u, role,
-                counter.isEmpty() ? "-" : counter,
-                "Registered"
-            });
+            btnRegister.setEnabled(false);
 
-            txtUser.setText("");
-            txtPass.setText("");
-            txtCounter.setText("");
-            JOptionPane.showMessageDialog(this, "User registered successfully");
+            new SwingWorker<Void, Void>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    FirebaseHelper.saveUser(u, p, role, counter.isEmpty() ? "" : counter);
+                    return null;
+                }
+
+                @Override
+                protected void done() {
+                    btnRegister.setEnabled(true);
+                    try {
+                        get(); 
+                        onlineModel.addRow(new Object[]{
+                            u, role,
+                            counter.isEmpty() ? "-" : counter,
+                            "Registered"
+                        });
+                        txtUser.setText("");
+                        txtPass.setText("");
+                        txtCounter.setText("");
+                        JOptionPane.showMessageDialog(UserManagementPanel.this, "User registered successfully");
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(UserManagementPanel.this,
+                            "Failed to register user.\nCheck internet / Firebase URL.",
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                        ex.printStackTrace();
+                    }
+                }
+            }.execute();
+        });
+
+        btnRefresh.addActionListener(e -> {
+        JOptionPane.showMessageDialog(this, "Online staff list is updated when staff log in and select a counter.");
         });
     }
 }

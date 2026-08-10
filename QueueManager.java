@@ -38,6 +38,16 @@ public class QueueManager {
     public boolean addPassenger(Passenger p) {
         queueList.add(p);
         notifyListeners();
+
+        // Save to Firebase in background
+        new Thread(() -> {
+            try {
+                FirebaseHelper.saveTicket(p);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+
         return true;
     }
 
@@ -62,6 +72,16 @@ public class QueueManager {
                 p.setAssignedCounter(counterId);
                 activeCounters.put(counterId, p);
                 notifyListeners();
+
+                // Update Firebase
+                new Thread(() -> {
+                    try {
+                        FirebaseHelper.updateTicketStatus(p.getTicketNumber(), "SERVING", counterId);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }).start();
+
                 return p;
             }
         }
@@ -74,6 +94,14 @@ public class QueueManager {
             p.setStatus("COMPLETED");
             activeCounters.put(counterId, null);
             notifyListeners();
+
+            new Thread(() -> {
+                try {
+                    FirebaseHelper.updateTicketStatus(p.getTicketNumber(), "COMPLETED", counterId);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
         }
     }
 
@@ -83,6 +111,14 @@ public class QueueManager {
             p.setStatus("SKIPPED");
             activeCounters.put(counterId, null);
             notifyListeners();
+
+            new Thread(() -> {
+                try {
+                    FirebaseHelper.updateTicketStatus(p.getTicketNumber(), "SKIPPED", counterId);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
         }
     }
 

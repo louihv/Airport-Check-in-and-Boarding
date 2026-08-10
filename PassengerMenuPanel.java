@@ -21,7 +21,7 @@ public class PassengerMenuPanel extends JPanel {
         box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
         box.setBackground(MainFrame.MAIN_BG);
 
-        JLabel title = new JLabel("What would you like to do?", SwingConstants.CENTER);
+        JLabel title = new JLabel("Start Here", SwingConstants.CENTER);
         title.setFont(new Font("Segoe UI", Font.BOLD, 24));
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
 

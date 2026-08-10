@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.GridLayout;
-
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -25,6 +24,7 @@ public class MainFrame extends JFrame {
     public static final Color MAIN_BG = new Color(245, 247, 245);
 
     private String currentRole = null; // "STAFF" or "ADMIN"
+    private String currentUsername = null;
 
     public MainFrame() {
         setTitle("Airport Queuing System");
@@ -68,9 +68,9 @@ public class MainFrame extends JFrame {
         mainPanel.add(new PassengerMenuPanel(this), "PassengerMenu");
         mainPanel.add(new LoginPanel(this), "Login");
         mainPanel.add(new DashboardPanel(), "Dashboard");
-        mainPanel.add(new CheckInPanel(), "CheckIn");
+        mainPanel.add(new CheckInPanel(this), "CheckIn");
         mainPanel.add(new TicketStatusPanel(), "TicketStatus");
-        mainPanel.add(new CounterStaffPanel(), "Staff");
+        mainPanel.add(new CounterStaffPanel(this), "Staff");
         mainPanel.add(new QueueMonitoringPanel(), "Monitor");
         mainPanel.add(new ReportsPanel(), "Reports");
         mainPanel.add(new UserManagementPanel(), "Users");
@@ -109,8 +109,9 @@ public class MainFrame extends JFrame {
         cardLayout.show(mainPanel, "TicketStatus");
     }
 
-    public void loginSuccess(String role) {
+    public void loginSuccess(String role, String username) {
         this.currentRole = role;
+        this.currentUsername = username;
         applyRoleSidebar(role);
         sidebar.setVisible(true);
         cardLayout.show(mainPanel, "Dashboard");
@@ -135,8 +136,24 @@ public class MainFrame extends JFrame {
         }
     }
 
+    public String getCurrentUsername() {
+        return currentUsername;
+    }
+
     public void logout() {
+        // mark staff offline when logging out
+        if (currentUsername != null) {
+            new Thread(() -> {
+                try {
+                    FirebaseHelper.setStaffOffline(currentUsername);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
+        }
+
         currentRole = null;
+        currentUsername = null;
         sidebar.setVisible(false);
         cardLayout.show(mainPanel, "Role");
         revalidate();
@@ -161,7 +178,14 @@ public class MainFrame extends JFrame {
         return btn;
     }
 
+    public void showPanel(String panelName) {
+        cardLayout.show(mainPanel, panelName);
+    }
+
     public static void main(String[] args) {
+ 
         SwingUtilities.invokeLater(() -> new MainFrame().setVisible(true));
     }
+    
 }
+

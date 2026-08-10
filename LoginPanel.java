@@ -1,16 +1,5 @@
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JTextField;
-import javax.swing.SwingConstants;
+import java.awt.*;
+import javax.swing.*;
 
 public class LoginPanel extends JPanel {
     public LoginPanel(MainFrame frame) {
@@ -67,13 +56,42 @@ public class LoginPanel extends JPanel {
             String user = txtUser.getText().trim();
             String pass = new String(txtPass.getPassword());
 
-            if (user.equals("admin") && pass.equals("admin123")) {
-                frame.loginSuccess("ADMIN");
-            } else if (user.equals("staff") && pass.equals("staff123")) {
-                frame.loginSuccess("STAFF");
-            } else {
-                msg.setText("Invalid username or password");
+            if (user.isEmpty() || pass.isEmpty()) {
+                msg.setText("Please enter username and password");
+                return;
             }
+
+            // disable button while logging in
+            btnLogin.setEnabled(false);
+            msg.setForeground(new Color(27, 77, 46));  
+            msg.setText("Logging in...");
+
+            // run network call in background so UI doesn't freeze
+            new SwingWorker<String, Void>() {
+                @Override
+                protected String doInBackground() throws Exception {
+                    return FirebaseHelper.login(user, pass);
+                }
+
+                @Override
+                protected void done() {
+                    btnLogin.setEnabled(true);
+                    try {
+                        String role = get();
+                        if (role != null) {
+                            msg.setText(" ");
+                            frame.loginSuccess(role, user);
+                        } else {
+                            msg.setForeground(Color.RED);
+                            msg.setText("Invalid username or password");
+                        }
+                    } catch (Exception ex) {
+                        msg.setForeground(Color.RED);
+                        msg.setText("Connection error. Check internet / Firebase URL");
+                        ex.printStackTrace();
+                    }
+                }
+            }.execute();
         });
 
         btnBack.addActionListener(e -> frame.backToRole());
