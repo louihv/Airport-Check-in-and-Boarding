@@ -15,23 +15,33 @@ public class CheckInPanel extends JPanel {
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 15));
         topBar.setOpaque(false);
 
-        JButton backButton = new JButton("← Back");
+        JButton backButton = new JButton("← Start Over");
         backButton.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        backButton.setBackground(new Color(46, 125, 50));
-        backButton.setForeground(Color.WHITE);
+        backButton.setForeground(MainFrame.NAV_BTN_BG);
+        backButton.setBackground(new Color(255, 255, 255, 0));
         backButton.setFocusPainted(false);
         backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         backButton.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
-        backButton.setContentAreaFilled(true);
-        backButton.setOpaque(true);
+        backButton.setContentAreaFilled(false);
+        backButton.setOpaque(false);
 
         // Hover effect
         backButton.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
             public void mouseEntered(java.awt.event.MouseEvent e) {
-                backButton.setBackground(new Color(35, 100, 40));
+                backButton.setBackground(MainFrame.NAV_BTN_BG);
+                backButton.setForeground(Color.WHITE);
+                backButton.setContentAreaFilled(true);
+                backButton.setOpaque(true);
             }
+
+            @Override
             public void mouseExited(java.awt.event.MouseEvent e) {
-                backButton.setBackground(new Color(46, 125, 50));
+                backButton.setBackground(new Color(255, 255, 255, 0));
+                backButton.setForeground(MainFrame.NAV_BTN_BG);
+                backButton.setContentAreaFilled(false);
+                backButton.setOpaque(false);
+                backButton.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
             }
         });
 
@@ -58,7 +68,7 @@ public class CheckInPanel extends JPanel {
         // Title
         JLabel lblTitle = new JLabel("Passenger Check-In", SwingConstants.CENTER);
         lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
-        lblTitle.setForeground(new Color(27, 77, 46));
+        lblTitle.setForeground(MainFrame.NAV_BTN_BG);
 
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -83,7 +93,7 @@ public class CheckInPanel extends JPanel {
         // Submit button
         JButton btnSubmit = new JButton("Register & Issue Queue Ticket");
         btnSubmit.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btnSubmit.setBackground(new Color(46, 125, 50));
+        btnSubmit.setBackground(MainFrame.SECONDARY_BTN_BG);
         btnSubmit.setForeground(Color.WHITE);
         btnSubmit.setFocusPainted(false);
         btnSubmit.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -94,10 +104,10 @@ public class CheckInPanel extends JPanel {
         // Hover effect for submit
         btnSubmit.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent e) {
-                btnSubmit.setBackground(new Color(35, 100, 40));
+                btnSubmit.setBackground(MainFrame.NAV_BTN_BG);
             }
             public void mouseExited(java.awt.event.MouseEvent e) {
-                btnSubmit.setBackground(new Color(46, 125, 50));
+                btnSubmit.setBackground(MainFrame.SECONDARY_BTN_BG);
             }
         });
 
@@ -131,7 +141,7 @@ public class CheckInPanel extends JPanel {
 
         JLabel label = new JLabel(labelText);
         label.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        label.setForeground(new Color(40, 60, 48));
+        label.setForeground(MainFrame.NAV_BTN_BG);
         panel.add(label, gbc);
 
         gbc.gridx = 1;

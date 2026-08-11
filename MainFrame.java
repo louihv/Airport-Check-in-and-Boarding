@@ -20,8 +20,10 @@ public class MainFrame extends JFrame {
     private JButton btnDash, btnStaff, btnMonitor, btnReports, btnUsers, btnLogout;
 
     public static final Color SIDEBAR_BG = new Color(20, 42, 31);
-    public static final Color NAV_BTN_BG = new Color(32, 68, 50);
-    public static final Color MAIN_BG = new Color(245, 247, 245);
+    public static final Color NAV_BTN_BG = new Color(17, 34, 80);
+    public static final Color SECONDARY_BTN_BG = new Color(60, 81, 126);
+    public static final Color MAIN_BG = new Color(244, 239, 233);
+
 
     private String currentRole = null; // "STAFF" or "ADMIN"
     private String currentUsername = null;

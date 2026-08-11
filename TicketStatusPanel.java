@@ -22,7 +22,7 @@ public class TicketStatusPanel extends JPanel {
         txtSearchTicket.setFont(new Font("Segoe UI", Font.PLAIN, 13));
 
         JButton btnSearch = new JButton("Check Status");
-        btnSearch.setBackground(new Color(46, 125, 50));
+        btnSearch.setBackground(MainFrame.NAV_BTN_BG);
         btnSearch.setForeground(Color.WHITE);
         btnSearch.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnSearch.setFocusPainted(false);
@@ -34,9 +34,9 @@ public class TicketStatusPanel extends JPanel {
 
         // Status Details Display
         JPanel card = new JPanel(new GridLayout(4, 1, 10, 10));
-        card.setBackground(new Color(235, 247, 238)); // Soft Mint Background
+        card.setBackground(new Color(235, 245, 255)); // Soft Blue Background
         card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(140, 195, 155), 2),
+            BorderFactory.createLineBorder(MainFrame.NAV_BTN_BG, 2),
             BorderFactory.createEmptyBorder(25, 25, 25, 25)
         ));
 
