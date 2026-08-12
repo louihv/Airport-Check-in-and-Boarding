@@ -49,7 +49,7 @@ public class PassengerMenuPanel extends JPanel {
 
         add(topBar, BorderLayout.NORTH);
 
-        // ===== Center content (same style as RolePanel) =====
+        //  Center content 
         JPanel centerWrapper = new JPanel(new GridBagLayout());
         centerWrapper.setOpaque(false);
 
@@ -62,14 +62,18 @@ public class PassengerMenuPanel extends JPanel {
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JButton btnCheckIn = createBigButton("Check-In");
+        JButton btnBaggage = createBigButton("Baggage");
         JButton btnTicket  = createBigButton("Ticket Status");
 
         btnCheckIn.addActionListener(e -> mainFrame.showCheckIn());
+        btnBaggage.addActionListener(e -> mainFrame.showBaggage());
         btnTicket.addActionListener(e -> mainFrame.showTicketStatus());
 
         box.add(title);
         box.add(Box.createVerticalStrut(40));
         box.add(btnCheckIn);
+        box.add(Box.createVerticalStrut(20));
+        box.add(btnBaggage);
         box.add(Box.createVerticalStrut(20));
         box.add(btnTicket);
 

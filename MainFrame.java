@@ -84,6 +84,7 @@ public class MainFrame extends JFrame {
         btnDash.addActionListener(e -> cardLayout.show(mainPanel, "Dashboard"));
         btnStaff.addActionListener(e -> cardLayout.show(mainPanel, "Staff"));
         btnMonitor.addActionListener(e -> cardLayout.show(mainPanel, "Monitor"));
+        btnLaunchTV.addActionListener(e -> new PublicDisplayBoardFrame().setVisible(true));
         btnReports.addActionListener(e -> cardLayout.show(mainPanel, "Reports"));
         btnUsers.addActionListener(e -> cardLayout.show(mainPanel, "Users"));
         btnLaunchTV.addActionListener(e -> new PublicDisplayBoardFrame().setVisible(true));
@@ -109,6 +110,11 @@ public class MainFrame extends JFrame {
     public void showCheckIn() {
         sidebar.setVisible(false);
         cardLayout.show(mainPanel, "CheckIn");
+    }
+
+    public void showBaggage() {
+        sidebar.setVisible(false);
+        cardLayout.show(mainPanel, "Baggage");
     }
 
     public void showTicketStatus() {
