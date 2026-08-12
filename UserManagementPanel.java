@@ -17,7 +17,7 @@ public class UserManagementPanel extends JPanel {
         JPanel center = new JPanel(new GridLayout(1, 2, 20, 0));
         center.setOpaque(false);
 
-        // ===== Register New User =====
+        //  Register New User 
         JPanel left = new JPanel(new BorderLayout(0, 10));
         left.setOpaque(false);
         left.setBorder(BorderFactory.createTitledBorder("Register New User"));
@@ -47,7 +47,7 @@ public class UserManagementPanel extends JPanel {
         left.add(form, BorderLayout.CENTER);
         left.add(btnRegister, BorderLayout.SOUTH);
 
-        // ===== Online Staff Table =====
+        //  Online Staff Table 
         JPanel right = new JPanel(new BorderLayout(0, 10));
         right.setOpaque(false);
         right.setBorder(BorderFactory.createTitledBorder("Online Staff / Counter Assignment"));
@@ -67,7 +67,7 @@ public class UserManagementPanel extends JPanel {
         center.add(right);
         add(center, BorderLayout.CENTER);
 
-        // ===== Register button action =====
+        //  Register button action 
         btnRegister.addActionListener(e -> {
             String u = txtUser.getText().trim();
             String p = new String(txtPass.getPassword());
