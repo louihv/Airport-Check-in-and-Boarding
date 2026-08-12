@@ -17,7 +17,7 @@ public class MainFrame extends JFrame {
     private JPanel mainPanel;
     private JPanel sidebar;
 
-    private JButton btnDash, btnStaff, btnMonitor, btnReports, btnUsers, btnLogout;
+    private JButton btnDash, btnStaff, btnMonitor, btnReports, btnUsers, btnLogout, btnLaunchTV;
 
     public static final Color SIDEBAR_BG = new Color(20, 42, 31);
     public static final Color NAV_BTN_BG = new Color(17, 34, 80);
@@ -50,6 +50,7 @@ public class MainFrame extends JFrame {
         btnMonitor = createNavButton("Queue Monitoring");
         btnReports = createNavButton("Reports & Analytics");
         btnUsers = createNavButton("User Management");
+        btnLaunchTV = createNavButton("Launch TV Display");
         btnLogout = createNavButton("Logout");
 
         sidebar.add(btnDash);
@@ -57,6 +58,7 @@ public class MainFrame extends JFrame {
         sidebar.add(btnMonitor);
         sidebar.add(btnReports);
         sidebar.add(btnUsers);
+        sidebar.add(btnLaunchTV);
         sidebar.add(btnLogout);
 
         // hide sidebar initially
@@ -76,12 +78,15 @@ public class MainFrame extends JFrame {
         mainPanel.add(new QueueMonitoringPanel(), "Monitor");
         mainPanel.add(new ReportsPanel(), "Reports");
         mainPanel.add(new UserManagementPanel(), "Users");
+        mainPanel.add(new BaggageScannerPanel(), "Baggage");
+        mainPanel.add(new SystemLogsPanel(), "Logs");
 
         btnDash.addActionListener(e -> cardLayout.show(mainPanel, "Dashboard"));
         btnStaff.addActionListener(e -> cardLayout.show(mainPanel, "Staff"));
         btnMonitor.addActionListener(e -> cardLayout.show(mainPanel, "Monitor"));
         btnReports.addActionListener(e -> cardLayout.show(mainPanel, "Reports"));
         btnUsers.addActionListener(e -> cardLayout.show(mainPanel, "Users"));
+        btnLaunchTV.addActionListener(e -> new PublicDisplayBoardFrame().setVisible(true));
         btnLogout.addActionListener(e -> logout());
 
         setLayout(new BorderLayout());
@@ -126,6 +131,7 @@ public class MainFrame extends JFrame {
         btnDash.setVisible(true);
         btnStaff.setVisible(true);
         btnMonitor.setVisible(true);
+        btnLaunchTV.setVisible(true);
         btnLogout.setVisible(true);
 
         if ("ADMIN".equals(role)) {
