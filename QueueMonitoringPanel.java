@@ -18,8 +18,8 @@ public class QueueMonitoringPanel extends JPanel {
         queueTable = new JTable(tableModel);
 
         queueTable.setRowHeight(28);
-        queueTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        queueTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        queueTable.setFont(AppFonts.regular(12));
+        queueTable.getTableHeader().setFont(AppFonts.bold(12));
         queueTable.getTableHeader().setBackground(new Color(220, 238, 225));
         queueTable.getTableHeader().setForeground(new Color(20, 50, 30));
 
@@ -31,7 +31,7 @@ public class QueueMonitoringPanel extends JPanel {
         scrollPane.getViewport().setBackground(Color.WHITE);
         scrollPane.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(new Color(180, 210, 190), 1),
-            "Live System Queue Monitor", 0, 0, new Font("Segoe UI", Font.BOLD, 14), new Color(27, 77, 46)
+            "Live System Queue Monitor", 0, 0, (AppFonts.bold(14)), new Color(27, 77, 46)
         ));
 
         add(scrollPane, BorderLayout.CENTER);

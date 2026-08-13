@@ -39,7 +39,7 @@ public class DashboardPanel extends JPanel {
         tablePanel.setBackground(Color.WHITE);
         tablePanel.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(new Color(180, 200, 185), 1), 
-            "Flight Queue Overview", 0, 0, new Font("Segoe UI", Font.BOLD, 14), new Color(27, 77, 46)
+            "Flight Queue Overview", 0, 0, (AppFonts.bold(12)), new Color(27, 77, 46)
         ));
         
         JScrollPane scrollPane = new JScrollPane(flightSummaryTable);
@@ -60,11 +60,11 @@ public class DashboardPanel extends JPanel {
 
         JLabel lblTitle = new JLabel(title);
         lblTitle.setForeground(new Color(230, 245, 235));
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblTitle.setFont(AppFonts.bold(13));
 
         JLabel lblValue = new JLabel(value, SwingConstants.LEFT);
         lblValue.setForeground(Color.WHITE);
-        lblValue.setFont(new Font("Segoe UI", Font.BOLD, 32));
+        lblValue.setFont(AppFonts.bold(32));
 
         card.add(lblTitle, BorderLayout.NORTH);
         card.add(lblValue, BorderLayout.CENTER);
@@ -74,8 +74,8 @@ public class DashboardPanel extends JPanel {
 
     private void styleTable(JTable table) {
         table.setRowHeight(30);
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        table.setFont(AppFonts.regular(12));
+        table.getTableHeader().setFont(AppFonts.bold(12));
         table.getTableHeader().setBackground(new Color(225, 240, 230));
         table.getTableHeader().setForeground(new Color(20, 50, 30));
         

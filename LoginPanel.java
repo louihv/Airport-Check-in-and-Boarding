@@ -18,7 +18,7 @@ public class LoginPanel extends JPanel {
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         JLabel title = new JLabel("Staff / Admin Login", SwingConstants.CENTER);
-        title.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        title.setFont(AppFonts.bold(22));
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
         form.add(title, gbc);
 

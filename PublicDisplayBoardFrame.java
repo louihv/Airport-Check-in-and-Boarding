@@ -23,15 +23,15 @@ public class PublicDisplayBoardFrame extends JFrame {
         headerPanel.setOpaque(false);
 
         JLabel lblAnnounce = new JLabel("NOW SERVING", SwingConstants.CENTER);
-        lblAnnounce.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        lblAnnounce.setFont(AppFonts.bold(28));
         lblAnnounce.setForeground(new Color(180, 225, 195));
 
         lblCurrentTicket = new JLabel("---", SwingConstants.CENTER);
-        lblCurrentTicket.setFont(new Font("Segoe UI", Font.BOLD, 72));
+        lblCurrentTicket.setFont(AppFonts.bold(72));
         lblCurrentTicket.setForeground(Color.YELLOW);
 
         lblCurrentCounter = new JLabel("Please proceed to your assigned counter", SwingConstants.CENTER);
-        lblCurrentCounter.setFont(new Font("Segoe UI", Font.PLAIN, 20));
+        lblCurrentCounter.setFont(AppFonts.bold(20));
         lblCurrentCounter.setForeground(Color.WHITE);
 
         headerPanel.add(lblAnnounce);
@@ -42,8 +42,8 @@ public class PublicDisplayBoardFrame extends JFrame {
         activeCountersModel = new DefaultTableModel(cols, 0);
         JTable table = new JTable(activeCountersModel);
         table.setRowHeight(40);
-        table.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 18));
+        table.setFont(AppFonts.bold(18));
+        table.getTableHeader().setFont(AppFonts.bold(18));
         table.getTableHeader().setBackground(new Color(32, 68, 50));
         table.getTableHeader().setForeground(Color.WHITE);
 

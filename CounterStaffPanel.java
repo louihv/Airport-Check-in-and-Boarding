@@ -18,11 +18,11 @@ public class CounterStaffPanel extends JPanel {
         topPanel.setOpaque(false);
 
         JLabel lblSelect = new JLabel("Assigned Workstation:");
-        lblSelect.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblSelect.setFont(AppFonts.bold(13));
         lblSelect.setForeground(new Color(27, 77, 46));
 
         comboCounters = new JComboBox<>(new Integer[]{1, 2, 3, 4});
-        comboCounters.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        comboCounters.setFont(AppFonts.bold(12));
 
         topPanel.add(lblSelect);
         topPanel.add(comboCounters);
@@ -33,13 +33,13 @@ public class CounterStaffPanel extends JPanel {
         infoPanel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(new Color(180, 210, 190), 1),
-                "Currently Serving Passenger", 0, 0, new Font("Segoe UI", Font.BOLD, 14), new Color(27, 77, 46)
+                "Currently Serving Passenger", 0, 0, (AppFonts.bold(14)), new Color(27, 77, 46)
             ),
             BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
 
         lblServingTicket = new JLabel("Queue Ticket: None");
-        lblServingTicket.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        lblServingTicket.setFont(AppFonts.bold(20));
         lblServingTicket.setForeground(new Color(27, 77, 46));
 
         lblPassengerName = createDetailLabel("Name: N/A");
@@ -105,14 +105,14 @@ public class CounterStaffPanel extends JPanel {
 
     private JLabel createDetailLabel(String text) {
         JLabel label = new JLabel(text);
-        label.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        label.setFont(AppFonts.regular(14));
         label.setForeground(new Color(50, 65, 55));
         return label;
     }
 
     private JButton createActionButton(String text, Color bg) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setFont(AppFonts.bold(12));
         btn.setBackground(bg);
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);

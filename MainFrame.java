@@ -1,16 +1,6 @@
-import java.awt.BorderLayout;
-import java.awt.CardLayout;
-import java.awt.Color;
-import java.awt.Cursor;
-import java.awt.Font;
-import java.awt.GridLayout;
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
+import java.awt.*;
+import java.net.URL;
+import javax.swing.*;
 
 public class MainFrame extends JFrame {
     private CardLayout cardLayout;
@@ -37,21 +27,21 @@ public class MainFrame extends JFrame {
 
         // navbar
         sidebar = new JPanel(new GridLayout(8, 1, 8, 8));
-        sidebar.setBackground(SIDEBAR_BG);
+        sidebar.setBackground(NAV_BTN_BG);
         sidebar.setBorder(BorderFactory.createEmptyBorder(15, 12, 15, 12));
 
-        JLabel lblTitle = new JLabel("AIRPORT QUEUE", SwingConstants.CENTER);
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        JLabel lblTitle = new JLabel("Orion Skyways", SwingConstants.CENTER);
+        lblTitle.setFont(AppFonts.bold(15));
         lblTitle.setForeground(new Color(180, 225, 195));
         sidebar.add(lblTitle);
 
-        btnDash = createNavButton("Dashboard");
-        btnStaff = createNavButton("Counter Staff Interface");
-        btnMonitor = createNavButton("Queue Monitoring");
-        btnReports = createNavButton("Reports & Analytics");
-        btnUsers = createNavButton("User Management");
-        btnLaunchTV = createNavButton("Launch TV Display");
-        btnLogout = createNavButton("Logout");
+        btnDash= createNavButton("Dashboard","https://img.icons8.com/ios-filled/50/ffffff/dashboard.png");
+        btnStaff= createNavButton("Counter Staff Interface", "https://img.icons8.com/ios-filled/50/ffffff/conference-call.png");
+        btnMonitor= createNavButton("Queue Monitoring","https://img.icons8.com/ios-filled/50/ffffff/monitor.png");
+        btnReports= createNavButton("Reports & Analytics",     "https://img.icons8.com/ios-filled/50/ffffff/combo-chart.png");
+        btnUsers= createNavButton("User Management",         "https://img.icons8.com/ios-filled/50/ffffff/group-foreground-selected.png");
+        btnLaunchTV= createNavButton("Launch TV Display",       "https://img.icons8.com/ios-filled/50/ffffff/tv.png");
+        btnLogout= createNavButton("Logout",                  "https://img.icons8.com/ios-filled/50/ffffff/exit.png");
 
         sidebar.add(btnDash);
         sidebar.add(btnStaff);
@@ -73,12 +63,12 @@ public class MainFrame extends JFrame {
         mainPanel.add(new LoginPanel(this), "Login");
         mainPanel.add(new DashboardPanel(), "Dashboard");
         mainPanel.add(new CheckInPanel(this), "CheckIn");
-        mainPanel.add(new TicketStatusPanel(), "TicketStatus");
+        mainPanel.add(new TicketStatusPanel(this), "TicketStatus");
         mainPanel.add(new CounterStaffPanel(this), "Staff");
         mainPanel.add(new QueueMonitoringPanel(), "Monitor");
         mainPanel.add(new ReportsPanel(), "Reports");
         mainPanel.add(new UserManagementPanel(), "Users");
-        mainPanel.add(new BaggageScannerPanel(), "Baggage");
+        mainPanel.add(new BaggageScannerPanel(this), "Baggage");
         mainPanel.add(new SystemLogsPanel(), "Logs");
 
         btnDash.addActionListener(e -> cardLayout.show(mainPanel, "Dashboard"));
@@ -178,17 +168,53 @@ public class MainFrame extends JFrame {
         logout();
     }
 
-    private JButton createNavButton(String text) {
+    private JButton createNavButton(String text, String iconUrl) {
         JButton btn = new JButton(text);
+
+        // Load & scale icon (24×24)
+        try {
+            ImageIcon original = new ImageIcon(new URL(iconUrl));
+            Image scaled = original.getImage().getScaledInstance(22, 22, Image.SCALE_SMOOTH);
+            btn.setIcon(new ImageIcon(scaled));
+            btn.setIconTextGap(12);            
+            btn.setHorizontalAlignment(SwingConstants.LEFT);
+        } catch (Exception e) {
+            System.err.println("Could not load icon: " + iconUrl);
+            // button still works without icon
+        }
+    btn.setOpaque(false);
+        btn.setContentAreaFilled(false);
         btn.setFocusPainted(false);
+        btn.setBorderPainted(true);
+
         btn.setForeground(Color.WHITE);
-        btn.setBackground(NAV_BTN_BG);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setFont(AppFonts.regular(12));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Subtle border that still looks good on dark sidebar
         btn.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(45, 90, 65), 1),
             BorderFactory.createEmptyBorder(8, 12, 8, 12)
         ));
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Optional: hover effect (slightly brighter border)
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                btn.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(100, 180, 130), 1),
+                    BorderFactory.createEmptyBorder(8, 12, 8, 12)
+                ));
+            }
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                btn.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(45, 90, 65), 1),
+                    BorderFactory.createEmptyBorder(8, 12, 8, 12)
+                ));
+            }
+        });
+
         return btn;
     }
 
@@ -197,7 +223,7 @@ public class MainFrame extends JFrame {
     }
 
     public static void main(String[] args) {
- 
+        AppFonts.loadFonts();
         SwingUtilities.invokeLater(() -> new MainFrame().setVisible(true));
     }
     

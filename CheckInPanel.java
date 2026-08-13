@@ -1,5 +1,5 @@
-import javax.swing.*;
 import java.awt.*;
+import javax.swing.*;
 
 public class CheckInPanel extends JPanel {
     private JTextField txtBookingRef, txtName, txtFlight, txtBaggage;
@@ -15,39 +15,12 @@ public class CheckInPanel extends JPanel {
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 15));
         topBar.setOpaque(false);
 
-        JButton backButton = new JButton("← Start Over");
-        backButton.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        backButton.setForeground(MainFrame.NAV_BTN_BG);
-        backButton.setBackground(new Color(255, 255, 255, 0));
-        backButton.setFocusPainted(false);
-        backButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backButton.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
-        backButton.setContentAreaFilled(false);
-        backButton.setOpaque(false);
+        JButton backButton = createBackButton("", "/icons/back.png");
+        backButton.addActionListener(e -> 
+            mainFrame.showPanel("PassengerMenu")
+        );
 
-        // Hover effect
-        backButton.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent e) {
-                backButton.setBackground(MainFrame.NAV_BTN_BG);
-                backButton.setForeground(Color.WHITE);
-                backButton.setContentAreaFilled(true);
-                backButton.setOpaque(true);
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent e) {
-                backButton.setBackground(new Color(255, 255, 255, 0));
-                backButton.setForeground(MainFrame.NAV_BTN_BG);
-                backButton.setContentAreaFilled(false);
-                backButton.setOpaque(false);
-                backButton.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
-            }
-        });
-
-        backButton.addActionListener(e -> mainFrame.showPanel("PassengerMenu"));
         topBar.add(backButton);
-
         add(topBar, BorderLayout.NORTH);
 
         // Centered form card 
@@ -67,7 +40,7 @@ public class CheckInPanel extends JPanel {
 
         // Title
         JLabel lblTitle = new JLabel("Passenger Check-In", SwingConstants.CENTER);
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        lblTitle.setFont(AppFonts.bold(20));
         lblTitle.setForeground(MainFrame.NAV_BTN_BG);
 
         gbc.gridx = 0;
@@ -92,7 +65,7 @@ public class CheckInPanel extends JPanel {
 
         // Submit button
         JButton btnSubmit = new JButton("Register & Issue Queue Ticket");
-        btnSubmit.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnSubmit.setFont(AppFonts.bold(13));
         btnSubmit.setBackground(MainFrame.SECONDARY_BTN_BG);
         btnSubmit.setForeground(Color.WHITE);
         btnSubmit.setFocusPainted(false);
@@ -123,9 +96,58 @@ public class CheckInPanel extends JPanel {
         btnSubmit.addActionListener(e -> processCheckIn());
     }
 
+    private JButton createBackButton(String text, String iconPath) {
+    JButton btn = new JButton(text);
+
+    try {
+        ImageIcon original = new ImageIcon(getClass().getResource(iconPath));
+
+        Image scaled = original.getImage().getScaledInstance(
+            22, 22, Image.SCALE_SMOOTH
+        );
+
+        btn.setIcon(new ImageIcon(scaled));
+        btn.setHorizontalAlignment(SwingConstants.CENTER);
+
+    } catch (Exception e) {
+        System.err.println("Could not load icon: " + iconPath);
+    }
+
+    btn.setBackground(new Color(255, 255, 255, 0));
+    btn.setFocusPainted(false);
+    btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+    // Borderless
+    btn.setBorder(BorderFactory.createEmptyBorder(
+        8, 16, 8, 16
+    ));
+
+    btn.setContentAreaFilled(false);
+    btn.setOpaque(false);
+
+    btn.addMouseListener(new java.awt.event.MouseAdapter() {
+
+        @Override
+        public void mouseEntered(java.awt.event.MouseEvent e) {
+            btn.setBackground(MainFrame.NAV_BTN_BG);
+            btn.setContentAreaFilled(true);
+            btn.setOpaque(true);
+        }
+
+        @Override
+        public void mouseExited(java.awt.event.MouseEvent e) {
+            btn.setBackground(new Color(255, 255, 255, 0));
+            btn.setContentAreaFilled(false);
+            btn.setOpaque(false);
+        }
+    });
+
+    return btn;
+    }
+    
     private JTextField createStyledField() {
         JTextField field = new JTextField(20);
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        field.setFont(AppFonts.regular(13));
         field.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(180, 200, 185), 1),
             BorderFactory.createEmptyBorder(8, 10, 8, 10)
@@ -140,7 +162,7 @@ public class CheckInPanel extends JPanel {
         gbc.anchor = GridBagConstraints.EAST;
 
         JLabel label = new JLabel(labelText);
-        label.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        label.setFont(AppFonts.bold(13));
         label.setForeground(MainFrame.NAV_BTN_BG);
         panel.add(label, gbc);
 

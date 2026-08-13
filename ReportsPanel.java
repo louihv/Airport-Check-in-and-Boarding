@@ -26,8 +26,8 @@ public class ReportsPanel extends JPanel {
         JTable table = new JTable(performanceModel);
         
         table.setRowHeight(28);
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        table.setFont(AppFonts.regular(12));
+        table.getTableHeader().setFont(AppFonts.bold(12));
         table.getTableHeader().setBackground(new Color(220, 238, 225));
         table.getTableHeader().setForeground(new Color(20, 50, 30));
 
@@ -39,7 +39,7 @@ public class ReportsPanel extends JPanel {
         scrollPane.getViewport().setBackground(Color.WHITE);
         scrollPane.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(new Color(180, 210, 190), 1),
-            "Counter Efficiency & Operational Metrics", 0, 0, new Font("Segoe UI", Font.BOLD, 14), new Color(27, 77, 46)
+            "Counter Efficiency & Operational Metrics", 0, 0, (AppFonts.bold(14)), new Color(27, 77, 46)
         ));
 
         add(statsPanel, BorderLayout.NORTH);
@@ -56,11 +56,11 @@ public class ReportsPanel extends JPanel {
 
         JLabel lblTitle = new JLabel(title);
         lblTitle.setForeground(new Color(230, 245, 235));
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblTitle.setFont(AppFonts.bold(12));
 
         JLabel lblVal = new JLabel(val, SwingConstants.LEFT);
         lblVal.setForeground(Color.WHITE);
-        lblVal.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        lblVal.setFont(AppFonts.bold(22));
 
         card.add(lblTitle, BorderLayout.NORTH);
         card.add(lblVal, BorderLayout.CENTER);

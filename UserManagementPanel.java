@@ -1,9 +1,11 @@
 import java.awt.*;
+import java.util.List;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
 public class UserManagementPanel extends JPanel {
     private DefaultTableModel onlineModel;
+    private JButton btnRefresh;
 
     public UserManagementPanel() {
         setBackground(MainFrame.MAIN_BG);
@@ -11,13 +13,12 @@ public class UserManagementPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         JLabel title = new JLabel("User Management");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        title.setFont(AppFonts.bold(22));
         add(title, BorderLayout.NORTH);
 
         JPanel center = new JPanel(new GridLayout(1, 2, 20, 0));
         center.setOpaque(false);
 
-        //  Register New User 
         JPanel left = new JPanel(new BorderLayout(0, 10));
         left.setOpaque(false);
         left.setBorder(BorderFactory.createTitledBorder("Register New User"));
@@ -47,19 +48,22 @@ public class UserManagementPanel extends JPanel {
         left.add(form, BorderLayout.CENTER);
         left.add(btnRegister, BorderLayout.SOUTH);
 
-        //  Online Staff Table 
         JPanel right = new JPanel(new BorderLayout(0, 10));
         right.setOpaque(false);
-        right.setBorder(BorderFactory.createTitledBorder("Online Staff / Counter Assignment"));
+        right.setBorder(BorderFactory.createTitledBorder("All Users (Admin / Staff)"));
 
         String[] cols = {"Username", "Role", "Counter", "Status"};
-        onlineModel = new DefaultTableModel(cols, 0);
+        onlineModel = new DefaultTableModel(cols, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
 
         JTable table = new JTable(onlineModel);
         right.add(new JScrollPane(table), BorderLayout.CENTER);
 
-        // Optional refresh button
-        JButton btnRefresh = new JButton("Refresh Online Staff");
+        btnRefresh = new JButton("Refresh Users");
         btnRefresh.setFocusPainted(false);
         right.add(btnRefresh, BorderLayout.SOUTH);
 
@@ -67,12 +71,10 @@ public class UserManagementPanel extends JPanel {
         center.add(right);
         add(center, BorderLayout.CENTER);
 
-        //  Register button action 
         btnRegister.addActionListener(e -> {
             String u = txtUser.getText().trim();
             String p = new String(txtPass.getPassword());
             String role = (String) cmbRole.getSelectedItem();
-            String userRole = (String) cmbRole.getSelectedItem();
             String counter = txtCounter.getText().trim();
 
             if (u.isEmpty() || p.isEmpty()) {
@@ -93,16 +95,12 @@ public class UserManagementPanel extends JPanel {
                 protected void done() {
                     btnRegister.setEnabled(true);
                     try {
-                        get(); 
-                        onlineModel.addRow(new Object[]{
-                            u, role,
-                            counter.isEmpty() ? "-" : counter,
-                            "Registered"
-                        });
+                        get();
                         txtUser.setText("");
                         txtPass.setText("");
                         txtCounter.setText("");
                         JOptionPane.showMessageDialog(UserManagementPanel.this, "User registered successfully");
+                        loadUsers();
                     } catch (Exception ex) {
                         JOptionPane.showMessageDialog(UserManagementPanel.this,
                             "Failed to register user.\nCheck internet / Firebase URL.",
@@ -113,8 +111,38 @@ public class UserManagementPanel extends JPanel {
             }.execute();
         });
 
-        btnRefresh.addActionListener(e -> {
-        JOptionPane.showMessageDialog(this, "Online staff list is updated when staff log in and select a counter.");
-        });
+        btnRefresh.addActionListener(e -> loadUsers());
+
+        loadUsers();
+    }
+
+    private void loadUsers() {
+        btnRefresh.setEnabled(false);
+
+        new SwingWorker<List<Object[]>, Void>() {
+            @Override
+            protected List<Object[]> doInBackground() throws Exception {
+                return FirebaseHelper.getAllUsers();
+            }
+
+            @Override
+            protected void done() {
+                btnRefresh.setEnabled(true);
+                try {
+                    List<Object[]> users = get();
+                    onlineModel.setRowCount(0);
+                    if (users != null) {
+                        for (Object[] row : users) {
+                            onlineModel.addRow(row);
+                        }
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(UserManagementPanel.this,
+                        "Failed to load users.\nCheck internet / Firebase URL.",
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                    ex.printStackTrace();
+                }
+            }
+        }.execute();
     }
 }

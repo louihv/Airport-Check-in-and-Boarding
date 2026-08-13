@@ -13,7 +13,7 @@ public class SystemLogsPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         JLabel title = new JLabel("System Audit Trail & Operations Log");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        title.setFont(AppFonts.bold(20));
         title.setForeground(new Color(27, 77, 46));
 
         String[] cols = {"Timestamp", "Event Type", "Description"};
