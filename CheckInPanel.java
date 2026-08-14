@@ -155,8 +155,7 @@ public class CheckInPanel extends JPanel {
         return field;
     }
 
-    private void addFormRow(JPanel panel, String labelText, JTextField field,
-                            GridBagConstraints gbc, int row) {
+    private void addFormRow(JPanel panel, String labelText, JTextField field, GridBagConstraints gbc, int row) {
         gbc.gridy = row;
         gbc.gridx = 0;
         gbc.anchor = GridBagConstraints.EAST;
