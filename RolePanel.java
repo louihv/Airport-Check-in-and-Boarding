@@ -34,8 +34,8 @@ public class RolePanel extends JPanel {
         title.setForeground(MainFrame.SECONDARY_BTN_BG);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        Icon kioskIcon = loadIcon("/icons/passport.png", 100);
-        Icon loginIcon = loadIcon("/icons/employee.png", 100);
+        Icon kioskIcon = loadIcon("/resources/passport.png", 100);
+        Icon loginIcon = loadIcon("/resources/employee.png", 100);
 
         JButton btnKiosk = createBigOutlineButton("PASSENGER KIOSK", kioskIcon);
         JButton btnLogin = createBigOutlineButton("EMPLOYEE PORTAL", loginIcon);

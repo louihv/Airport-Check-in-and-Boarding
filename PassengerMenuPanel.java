@@ -16,27 +16,25 @@ public class PassengerMenuPanel extends JPanel {
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 15));
         topBar.setOpaque(false);
 
-        JButton backButton = createBackButton("/icons/back.png");
+        JButton backButton = createBackButton("/resources/back.png");
         backButton.addActionListener(e -> mainFrame.showPanel("Role"));
         topBar.add(backButton);
 
         add(topBar, BorderLayout.NORTH);
 
         //  MAIN CONTENT (Left text + Right buttons) 
-        JPanel content = new JPanel(new GridLayout(1, 2, 40, 0)); 
+        JPanel content = new JPanel(new GridLayout(1, 2, 500, 0)); 
         content.setOpaque(false);
-        content.setBorder(BorderFactory.createEmptyBorder(20, 60, 40, 60));
+        
+        content.setBorder(BorderFactory.createEmptyBorder(20, 60, 40, 0));
 
         JPanel leftPanel = new JPanel();
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
         leftPanel.setOpaque(false);
 
-        leftPanel.add(Box.createVerticalGlue()); 
-
         JLabel welcome = new JLabel("Welcome");
         welcome.setFont(AppFonts.bold(80));
         welcome.setForeground(MainFrame.NAV_BTN_BG);
-
         welcome.setAlignmentX(Component.LEFT_ALIGNMENT);
         JLabel subtitle = new JLabel("Click an option below to begin.");
         subtitle.setFont(AppFonts.regular(20));
@@ -44,7 +42,6 @@ public class PassengerMenuPanel extends JPanel {
         subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         leftPanel.add(welcome);
-        leftPanel.add(Box.createVerticalStrut(5));
         leftPanel.add(subtitle);
         leftPanel.add(Box.createVerticalGlue());
 
@@ -56,10 +53,14 @@ public class PassengerMenuPanel extends JPanel {
         JLabel start = new JLabel("Start Here");
         start.setFont(AppFonts.bold(20));
         start.setForeground(MainFrame.NAV_BTN_BG);
+        start.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JButton btnCheckIn = createOutlineButton("Check-In");
         JButton btnBaggage = createOutlineButton("Baggage");
         JButton btnTicket  = createOutlineButton("Ticket Status");
+        btnCheckIn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btnBaggage.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btnTicket.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         btnCheckIn.addActionListener(e -> mainFrame.showCheckIn());
         btnBaggage.addActionListener(e -> mainFrame.showBaggage());
@@ -71,8 +72,6 @@ public class PassengerMenuPanel extends JPanel {
         rightPanel.add(btnBaggage);
         rightPanel.add(Box.createVerticalStrut(13));
         rightPanel.add(btnTicket);
-
-        // rightPanel.add(Box.createVerticalGlue());
 
         content.add(leftPanel);
         content.add(rightPanel);
