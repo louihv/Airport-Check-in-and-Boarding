@@ -15,7 +15,7 @@ public class BaggageScannerPanel extends JPanel {
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 15));
         topBar.setOpaque(false);
 
-        JButton backButton = createBackButton("", "/icons/back.png");
+        JButton backButton = createBackButton("", "/resources/back.png");
         backButton.addActionListener(e ->
             mainFrame.showPanel("Role")
         );
