@@ -20,6 +20,7 @@ public class MainFrame extends JFrame {
 
     public MainFrame() {
         setTitle("Airport Queuing System");
+        setMinimumSize(new Dimension(1000, 650));
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setUndecorated(false);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -38,10 +39,10 @@ public class MainFrame extends JFrame {
         btnDash= createNavButton("Dashboard","https://img.icons8.com/ios-filled/50/ffffff/dashboard.png");
         btnStaff= createNavButton("Counter Staff Interface", "https://img.icons8.com/ios-filled/50/ffffff/conference-call.png");
         btnMonitor= createNavButton("Queue Monitoring","https://img.icons8.com/ios-filled/50/ffffff/monitor.png");
-        btnReports= createNavButton("Reports & Analytics",     "https://img.icons8.com/ios-filled/50/ffffff/combo-chart.png");
-        btnUsers= createNavButton("User Management",         "https://img.icons8.com/ios-filled/50/ffffff/group-foreground-selected.png");
-        btnLaunchTV= createNavButton("Launch TV Display",       "https://img.icons8.com/ios-filled/50/ffffff/tv.png");
-        btnLogout= createNavButton("Logout",                  "https://img.icons8.com/ios-filled/50/ffffff/exit.png");
+        btnReports= createNavButton("Reports & Analytics","https://img.icons8.com/ios-filled/50/ffffff/combo-chart.png");
+        btnUsers= createNavButton("User Management","https://img.icons8.com/ios-filled/50/ffffff/group-foreground-selected.png");
+        btnLaunchTV= createNavButton("Launch TV Display","https://img.icons8.com/ios-filled/50/ffffff/tv.png");
+        btnLogout= createNavButton("Logout","https://img.icons8.com/ios-filled/50/ffffff/exit.png");
 
         sidebar.add(btnDash);
         sidebar.add(btnStaff);

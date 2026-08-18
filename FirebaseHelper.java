@@ -129,16 +129,24 @@ public class FirebaseHelper {
     }
 
     public static String login(String username, String password) throws Exception {
+        if (username == null || password == null) return null;
+
         String hashed = hash(password);
         String[] roles = {"staff", "admin"};
 
         for (String r : roles) {
-            String data = get("users/" + r);
+            String exact = get("users/" + r + "/" + username);
+            if (exact != null && !exact.equals("null") && !exact.trim().isEmpty()) {
+                String storedHash = extractJsonString(exact, "password");
+                if (hashed.equals(storedHash)) {
+                    return r.toUpperCase();  
+                }
+            }
 
+            String data = get("users/" + r);
             if (data != null && !data.equals("null") && !data.isEmpty()) {
                 if (data.contains("\"username\":\"" + username + "\"") &&
-                    (data.contains("\"password\":\"" + hashed + "\"") ||
-                     data.contains("\"password\": \"" + hashed + "\""))) {
+                    data.contains("\"password\":\"" + hashed + "\"")) {
                     return r.toUpperCase();
                 }
             }
@@ -156,6 +164,37 @@ public class FirebaseHelper {
 
     public static void setStaffOffline(String username) throws Exception {
         delete("onlineStaff/" + username);
+    }
+
+    public static void saveBaggage(String bookingRef, String tagNo, double weight, String status) throws Exception {
+    String json = String.format(
+        "{\"bookingRef\":\"%s\",\"tagNo\":\"%s\",\"weight\":%.2f,\"status\":\"%s\",\"timestamp\":\"%s\"}",
+        bookingRef,
+        tagNo,
+        weight,
+        status,
+        java.time.LocalDateTime.now().toString()
+    );
+    put("baggage/" + tagNo, json);
+
+    String ticketsJson = get("tickets");
+    if (ticketsJson != null && !ticketsJson.equals("null") && !ticketsJson.isEmpty()) {
+        Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(ticketsJson);
+        while (keyMatcher.find()) {
+            String ticketKey = keyMatcher.group(1);
+            int start = keyMatcher.end() - 1;
+            int end = findMatchingBrace(ticketsJson, start);
+            if (end == -1) continue;
+
+            String obj = ticketsJson.substring(start, end + 1);
+            String ref = extractJsonString(obj, "bookingRef");
+            if (bookingRef.equalsIgnoreCase(ref)) {
+                String baggageInfo = tagNo + " (" + String.format("%.2f", weight) + " kg)";
+                put("tickets/" + ticketKey + "/baggage", "\"" + baggageInfo + "\"");
+                break;
+            }
+        }
+    }
     }
 
     public static void saveTicket(Passenger p) throws Exception {
@@ -179,11 +218,9 @@ public class FirebaseHelper {
         put("tickets/" + ticketNo + "/counter", String.valueOf(counter));
     }
 
-    /** Returns rows for the User Management table: {Username, Role, Counter, Status} */
     public static List<Object[]> getAllUsers() throws Exception {
         List<Object[]> result = new ArrayList<>();
 
-        // Collect currently online usernames
         Set<String> onlineUsers = new HashSet<>();
         String onlineJson = get("onlineStaff");
         if (onlineJson != null && !onlineJson.equals("null") && !onlineJson.trim().isEmpty() && !onlineJson.equals("{}")) {
@@ -193,7 +230,6 @@ public class FirebaseHelper {
             }
         }
 
-        // Read both admin and staff nodes
         String[] roles = {"admin", "staff"};
         for (String rolePath : roles) {
             String data = get("users/" + rolePath);
@@ -201,11 +237,10 @@ public class FirebaseHelper {
                 continue;
             }
 
-            // Find each child object: "usernameKey" : { ... }
             Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
             while (keyMatcher.find()) {
                 String usernameKey = keyMatcher.group(1);
-                int start = keyMatcher.end() - 1; // position of '{'
+                int start = keyMatcher.end() - 1;
                 int end = findMatchingBrace(data, start);
                 if (end == -1) continue;
 
@@ -235,6 +270,44 @@ public class FirebaseHelper {
         return result;
     }
 
+    public static java.util.Map<String, String> getPassenger(String bookingRef) throws Exception {
+        if (bookingRef == null || bookingRef.trim().isEmpty()) {
+            return null;
+        }
+
+        String data = get("passengers/" + bookingRef.trim());
+
+        if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
+            return null;
+        }
+
+        java.util.Map<String, String> passenger = new java.util.HashMap<>();
+        passenger.put("passengerName", nullToEmpty(extractJsonString(data, "passengerName")));
+        passenger.put("flightId",      nullToEmpty(extractJsonString(data, "flightId")));
+        passenger.put("airline",       nullToEmpty(extractJsonString(data, "airline")));
+        passenger.put("departureAirport", nullToEmpty(extractJsonString(data, "departureAirport")));
+        passenger.put("arrivalAirport",   nullToEmpty(extractJsonString(data, "arrivalAirport")));
+        passenger.put("departureTime",    nullToEmpty(extractJsonString(data, "departureTime")));
+        passenger.put("flightStatus",     nullToEmpty(extractJsonString(data, "flightStatus")));
+
+        String duration = extractJsonNumber(data, "flightDurationMinutes");
+        passenger.put("flightDurationMinutes", duration != null ? duration : "");
+
+        String distance = extractJsonNumber(data, "distanceMiles");
+        passenger.put("distanceMiles", distance != null ? distance : "");
+
+        String price = extractJsonNumber(data, "priceUsd");
+        if (price == null) {
+            Pattern p = Pattern.compile("\"priceUsd\"\\s*:\\s*([0-9]+\\.?[0-9]*)");
+            Matcher m = p.matcher(data);
+            if (m.find()) price = m.group(1);
+        }
+        passenger.put("priceUsd", price != null ? price : "");
+
+        return passenger;
+    }
+    
+
     private static int findMatchingBrace(String s, int openPos) {
         int depth = 0;
         for (int i = openPos; i < s.length(); i++) {
@@ -258,52 +331,48 @@ public class FirebaseHelper {
     }
 
     public static List<java.util.Map<String, String>> getAllTickets() throws Exception {
-    List<java.util.Map<String, String>> tickets = new ArrayList<>();
-    String data = get("tickets");
+        List<java.util.Map<String, String>> tickets = new ArrayList<>();
+        String data = get("tickets");
 
-    if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
+        if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
+            return tickets;
+        }
+
+        Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
+        while (keyMatcher.find()) {
+            String key = keyMatcher.group(1);
+            int start = keyMatcher.end() - 1;
+            int end = findMatchingBrace(data, start);
+            if (end == -1) continue;
+
+            String obj = data.substring(start, end + 1);
+
+            java.util.Map<String, String> t = new java.util.HashMap<>();
+            t.put("ticketNo",      extractJsonString(obj, "ticketNo") != null ? extractJsonString(obj, "ticketNo") : key);
+            t.put("bookingRef",    nullToEmpty(extractJsonString(obj, "bookingRef")));
+            t.put("name",          nullToEmpty(extractJsonString(obj, "name")));
+            t.put("flightNo",      nullToEmpty(extractJsonString(obj, "flightNo")));
+            t.put("baggage",       nullToEmpty(extractJsonString(obj, "baggage")));
+            t.put("status",        nullToEmpty(extractJsonString(obj, "status")));
+            t.put("checkInTime",   nullToEmpty(extractJsonString(obj, "checkInTime")));
+
+            String counterStr = extractJsonNumber(obj, "counter");
+            t.put("counter", counterStr != null ? counterStr : "0");
+
+            tickets.add(t);
+        }
+
+        tickets.sort((a, b) -> {
+            String t1 = a.get("checkInTime");
+            String t2 = b.get("checkInTime");
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t1.compareTo(t2);
+        });
+
         return tickets;
     }
 
-    // Match each child: "TICKET_KEY" : { ... }
-    Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
-    while (keyMatcher.find()) {
-        String key = keyMatcher.group(1);
-        int start = keyMatcher.end() - 1;
-        int end = findMatchingBrace(data, start);
-        if (end == -1) continue;
-
-        String obj = data.substring(start, end + 1);
-
-        java.util.Map<String, String> t = new java.util.HashMap<>();
-        t.put("ticketNo",      extractJsonString(obj, "ticketNo") != null ? extractJsonString(obj, "ticketNo") : key);
-        t.put("bookingRef",    nullToEmpty(extractJsonString(obj, "bookingRef")));
-        t.put("name",          nullToEmpty(extractJsonString(obj, "name")));
-        t.put("flightNo",      nullToEmpty(extractJsonString(obj, "flightNo")));
-        t.put("baggage",       nullToEmpty(extractJsonString(obj, "baggage")));
-        t.put("status",        nullToEmpty(extractJsonString(obj, "status")));
-        t.put("checkInTime",   nullToEmpty(extractJsonString(obj, "checkInTime")));
-
-        // counter is stored as number, so we need a different extractor
-        String counterStr = extractJsonNumber(obj, "counter");
-        t.put("counter", counterStr != null ? counterStr : "0");
-
-        tickets.add(t);
-    }
-
-    // Sort by checkInTime (oldest first) so queue order is correct
-    tickets.sort((a, b) -> {
-        String t1 = a.get("checkInTime");
-        String t2 = b.get("checkInTime");
-        if (t1 == null) return 1;
-        if (t2 == null) return -1;
-        return t1.compareTo(t2);
-    });
-
-    return tickets;
-    }
-
-    /** Returns only tickets whose status is WAITING (already sorted by check-in time) */
     public static List<java.util.Map<String, String>> getWaitingTickets() throws Exception {
         List<java.util.Map<String, String>> all = getAllTickets();
         List<java.util.Map<String, String>> waiting = new ArrayList<>();
@@ -315,7 +384,6 @@ public class FirebaseHelper {
         return waiting;
     }
 
-    /** Find a single ticket by ticket number (case-insensitive) */
     public static java.util.Map<String, String> getTicketByNumber(String ticketNo) throws Exception {
         if (ticketNo == null || ticketNo.trim().isEmpty()) return null;
         List<java.util.Map<String, String>> all = getAllTickets();
@@ -326,7 +394,6 @@ public class FirebaseHelper {
         }
         return null;
     }
-
 
     private static String nullToEmpty(String s) {
         return s == null ? "" : s;
@@ -340,5 +407,4 @@ public class FirebaseHelper {
         }
         return null;
     }
-    
 }
