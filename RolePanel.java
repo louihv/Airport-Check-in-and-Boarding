@@ -1,21 +1,6 @@
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.GridBagLayout;
-import java.awt.Image;
-import java.awt.RenderingHints;
+import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.SwingConstants;
+import javax.swing.*;
 import javax.swing.border.AbstractBorder;
 
 public class RolePanel extends JPanel {
@@ -83,7 +68,6 @@ public class RolePanel extends JPanel {
         btn.setOpaque(false);
         btn.setForeground(MainFrame.NAV_BTN_BG);
 
-        // Icon on top of text
         btn.setHorizontalTextPosition(SwingConstants.CENTER);
         btn.setVerticalTextPosition(SwingConstants.BOTTOM);
         btn.setIconTextGap(14);
@@ -92,7 +76,6 @@ public class RolePanel extends JPanel {
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // Rounded outline border
         btn.setBorder(new RoundedOutlineBorder(1, new Color(216,203,194), 22));
 
         return btn;

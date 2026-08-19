@@ -12,9 +12,9 @@ public class DashboardPanel extends JPanel {
     private DefaultTableModel tableModel;
 
 
-    private static final Color CARD_GREEN_DARK = new Color(27, 77, 46);   // Deep Forest
-    private static final Color CARD_GREEN_MED = new Color(46, 125, 50);   // Classic Forest
-    private static final Color CARD_GREEN_LIGHT = new Color(67, 160, 71); // Fresh Green
+    private static final Color CARD_BLUE_DARK  = new Color(12, 24, 58);   // Deep Navy
+    private static final Color CARD_BLUE_MED   = new Color(17, 34, 80);   // Main Navy
+    private static final Color CARD_BLUE_LIGHT = new Color(47, 70, 125);  // Fresh Blue
 
     public DashboardPanel() {
         setLayout(new BorderLayout(15, 15));
@@ -25,9 +25,9 @@ public class DashboardPanel extends JPanel {
         JPanel kpiPanel = new JPanel(new GridLayout(1, 3, 15, 0));
         kpiPanel.setOpaque(false);
 
-        lblTotalQueue = createKpiCard(kpiPanel, "Passengers in Queue", "0", CARD_GREEN_DARK);
-        lblActiveCounters = createKpiCard(kpiPanel, "Active Counters", "4/4", CARD_GREEN_MED);
-        lblTotalServed = createKpiCard(kpiPanel, "Served Today", "0", CARD_GREEN_LIGHT);
+        lblTotalQueue = createKpiCard(kpiPanel, "Passengers in Queue", "0", CARD_BLUE_DARK);
+        lblActiveCounters = createKpiCard(kpiPanel, "Active Counters", "4/4", CARD_BLUE_MED);
+        lblTotalServed = createKpiCard(kpiPanel, "Served Today", "0", CARD_BLUE_LIGHT);
 
      
         String[] columns = {"Flight No.", "Waiting Passengers", "Status"};

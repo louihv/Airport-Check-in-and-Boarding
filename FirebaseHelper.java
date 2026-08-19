@@ -1,14 +1,9 @@
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.*;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.regex.*;
 
 public class FirebaseHelper {
 
@@ -128,43 +123,62 @@ public class FirebaseHelper {
         put(path, json);
     }
 
-    public static String login(String username, String password) throws Exception {
-        if (username == null || password == null) return null;
-
-        String hashed = hash(password);
-        String[] roles = {"staff", "admin"};
+    public static String[] login(String username, String password) throws Exception {
+    String hashed = hash(password);
+    String[] roles = {"staff", "admin"};
 
         for (String r : roles) {
-            String exact = get("users/" + r + "/" + username);
-            if (exact != null && !exact.equals("null") && !exact.trim().isEmpty()) {
-                String storedHash = extractJsonString(exact, "password");
-                if (hashed.equals(storedHash)) {
-                    return r.toUpperCase();  
-                }
-            }
+            String data = get("users/" + r + "/" + username);
 
-            String data = get("users/" + r);
             if (data != null && !data.equals("null") && !data.isEmpty()) {
-                if (data.contains("\"username\":\"" + username + "\"") &&
-                    data.contains("\"password\":\"" + hashed + "\"")) {
-                    return r.toUpperCase();
+                if (data.contains("\"password\":\"" + hashed + "\"") ||
+                    data.contains("\"password\": \"" + hashed + "\"")) {
+
+                    // extract counter if present
+                    String counter = "";
+                    int idx = data.indexOf("\"counter\"");
+                    if (idx != -1) {
+                        int start = data.indexOf(':', idx) + 1;
+                        int end = data.indexOf(',', start);
+                        if (end == -1) end = data.indexOf('}', start);
+                        if (end > start) {
+                            counter = data.substring(start, end)
+                                        .replace("\"", "")
+                                        .trim();
+                        }
+                    }
+
+                    setOnline(username, r, counter);
+
+                    return new String[]{ r.toUpperCase(), counter };
                 }
             }
         }
         return null;
     }
 
-    public static void setStaffOnline(String username, int counter) throws Exception {
-        String json = String.format(
-            "{\"username\":\"%s\",\"counter\":%d,\"status\":\"Online\",\"loginTime\":\"%s\"}",
-            username, counter, java.time.LocalDateTime.now().toString()
-        );
-        put("onlineStaff/" + username, json);
+    public static void setOnline(String username, String role, String counter) throws Exception {
+    int counterNum = 0;
+    try {
+        if (counter != null && !counter.trim().isEmpty()) {
+            counterNum = Integer.parseInt(counter.trim());
+        }
+    } catch (NumberFormatException ignored) {}
+
+    String json = String.format(
+        "{\"username\":\"%s\",\"role\":\"%s\",\"counter\":%d,\"status\":\"Online\",\"loginTime\":\"%s\"}",
+        username,
+        role,
+        counterNum,
+        java.time.LocalDateTime.now().toString()
+    );
+    put("onlineStaff/" + username, json);
     }
 
-    public static void setStaffOffline(String username) throws Exception {
+    public static void setOffline(String username) throws Exception {
         delete("onlineStaff/" + username);
     }
+
 
     public static void saveBaggage(String bookingRef, String tagNo, double weight, String status) throws Exception {
     String json = String.format(

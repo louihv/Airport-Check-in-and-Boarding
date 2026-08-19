@@ -8,7 +8,7 @@ public class CounterStaffPanel extends JPanel {
 
     public CounterStaffPanel(MainFrame frame) {
         this.mainFrame = frame;
-            
+
         setLayout(new BorderLayout(15, 15));
         setBackground(MainFrame.MAIN_BG);
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -33,7 +33,7 @@ public class CounterStaffPanel extends JPanel {
         infoPanel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(new Color(180, 210, 190), 1),
-                "Currently Serving Passenger", 0, 0, (AppFonts.bold(14)), new Color(27, 77, 46)
+                "Currently Serving Passenger", 0, 0, AppFonts.bold(14), new Color(27, 77, 46)
             ),
             BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
@@ -43,8 +43,8 @@ public class CounterStaffPanel extends JPanel {
         lblServingTicket.setForeground(new Color(27, 77, 46));
 
         lblPassengerName = createDetailLabel("Name: N/A");
-        lblFlight = createDetailLabel("Flight: N/A");
-        lblBaggage = createDetailLabel("Baggage: N/A");
+        lblFlight       = createDetailLabel("Flight: N/A");
+        lblBaggage      = createDetailLabel("Baggage: N/A");
 
         infoPanel.add(lblServingTicket);
         infoPanel.add(lblPassengerName);
@@ -55,9 +55,9 @@ public class CounterStaffPanel extends JPanel {
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
         btnPanel.setOpaque(false);
 
-        JButton btnCallNext = createActionButton("Call Next Passenger", new Color(46, 125, 50));
-        JButton btnComplete = createActionButton("Complete Service", new Color(27, 77, 46));
-        JButton btnSkip = createActionButton("Skip Passenger", new Color(180, 40, 40)); // Red highlight for skip action
+        JButton btnCallNext  = createActionButton("Call Next Passenger", new Color(46, 125, 50));
+        JButton btnComplete  = createActionButton("Complete Service", new Color(27, 77, 46));
+        JButton btnSkip      = createActionButton("Skip Passenger", new Color(180, 40, 40));
 
         btnPanel.add(btnCallNext);
         btnPanel.add(btnComplete);
@@ -69,31 +69,23 @@ public class CounterStaffPanel extends JPanel {
 
         comboCounters.addActionListener(e -> {
             refreshDisplay();
-
-            int counter = (Integer) comboCounters.getSelectedItem();
-            String username = mainFrame.getCurrentUsername();
-
-            if (username != null && !username.isEmpty()) {
-                new Thread(() -> {
-                    try {
-                        FirebaseHelper.setStaffOnline(username, counter);
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
-                    }
-                }).start();
-            }
+            updateOnlineStatus();
         });
-        
+
+        SwingUtilities.invokeLater(this::updateOnlineStatus);
+
         btnCallNext.addActionListener(e -> {
             int counter = (Integer) comboCounters.getSelectedItem();
             QueueManager.getInstance().callNextPassenger(counter);
             refreshDisplay();
         });
+
         btnComplete.addActionListener(e -> {
             int counter = (Integer) comboCounters.getSelectedItem();
             QueueManager.getInstance().completeService(counter);
             refreshDisplay();
         });
+
         btnSkip.addActionListener(e -> {
             int counter = (Integer) comboCounters.getSelectedItem();
             QueueManager.getInstance().skipPassenger(counter);
@@ -101,6 +93,24 @@ public class CounterStaffPanel extends JPanel {
         });
 
         QueueManager.getInstance().addListener(this::refreshDisplay);
+    }
+
+    private void updateOnlineStatus() {
+        String username = mainFrame.getCurrentUsername();
+        String role     = mainFrame.getCurrentRole();  
+
+        if (username == null || username.isEmpty() || role == null) return;
+
+        int counter = (Integer) comboCounters.getSelectedItem();
+
+        new Thread(() -> {
+            try {
+                FirebaseHelper.setOnline(username, role, String.valueOf(counter));
+            } catch (Exception ex) {
+                System.err.println("Failed to update online status: " + ex.getMessage());
+                ex.printStackTrace();
+            }
+        }).start();
     }
 
     private JLabel createDetailLabel(String text) {
