@@ -1,8 +1,9 @@
 import java.awt.*;
+import java.awt.geom.RoundRectangle2D;
 import java.net.URL;
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
-import java.awt.geom.RoundRectangle2D;
+
 public class MainFrame extends JFrame {
     private CardLayout cardLayout;
     private JPanel mainPanel;
@@ -170,6 +171,14 @@ public class MainFrame extends JFrame {
         applyRoleSidebar(role);
         sidebar.setVisible(true);
         cardLayout.show(mainPanel, "Dashboard");
+
+        new Thread(() -> {
+            try {
+                FirebaseHelper.setOnline(username, role, "");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
        
         revalidate();
         repaint();
@@ -181,14 +190,14 @@ public class MainFrame extends JFrame {
         btnMonitor.setVisible(true);
         btnLaunchTV.setVisible(true);
         btnLogout.setVisible(true);
-        // if ("ADMIN".equals(role)) {
+        if ("ADMIN".equals(role)) {
         // btnReports.setVisible(true);
-        // btnUsers.setVisible(true);
-        // } else {
-        // // STAFF
+        btnUsers.setVisible(true);
+        } else {
+        // STAFF
         // btnReports.setVisible(false);
-        // btnUsers.setVisible(false);
-        // }
+        btnUsers.setVisible(false);
+        }
     }
 
     public String getCurrentUsername() {
@@ -201,9 +210,11 @@ public class MainFrame extends JFrame {
 
     public void logout() {
         if (currentUsername != null) {
+            final String userToOffline = currentUsername;
             new Thread(() -> {
                 try {
-                    FirebaseHelper.setOffline(currentUsername);
+                    FirebaseHelper.setOffline(userToOffline);
+                    System.out.println("Status set to Offline for: " + userToOffline);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -225,37 +236,36 @@ public class MainFrame extends JFrame {
     }
 
     private JButton createNavButton(String text, String iconUrl) {
-    JButton btn = new JButton(text);
-    try {
-        ImageIcon original = new ImageIcon(new URL(iconUrl));
-        Image scaled = original.getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH);
-        btn.setIcon(new ImageIcon(scaled));
-        btn.setIconTextGap(12);
-    } catch (Exception e) {
-        System.err.println("Could not load icon: " + iconUrl);
-    }
+        JButton btn = new JButton(text);
+        try {
+            ImageIcon original = new ImageIcon(new URL(iconUrl));
+            Image scaled = original.getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH);
+            btn.setIcon(new ImageIcon(scaled));
+            btn.setIconTextGap(12);
+        } catch (Exception e) {
+            System.err.println("Could not load icon: " + iconUrl);
+        }
 
+        btn.setOpaque(false);
+        btn.setContentAreaFilled(false);
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setForeground(Color.WHITE);
+        btn.setFont(AppFonts.regular(12));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-    btn.setOpaque(false);
-    btn.setContentAreaFilled(false);
-    btn.setFocusPainted(false);
-    btn.setBorderPainted(false);
-    btn.setForeground(Color.WHITE);
-    btn.setFont(AppFonts.regular(12));
-    btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setHorizontalAlignment(SwingConstants.LEFT);
+        btn.setHorizontalTextPosition(SwingConstants.RIGHT); 
+        btn.setVerticalAlignment(SwingConstants.CENTER);
 
-    btn.setHorizontalAlignment(SwingConstants.LEFT);
-    btn.setHorizontalTextPosition(SwingConstants.RIGHT); 
-    btn.setVerticalAlignment(SwingConstants.CENTER);
+        btn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 10));
+        btn.setMargin(new Insets(0, 0, 0, 0));
 
-    btn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 10));
-    btn.setMargin(new Insets(0, 0, 0, 0));
-
-    btn.setAlignmentX(Component.LEFT_ALIGNMENT);
-    btn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
-    btn.setPreferredSize(new Dimension(240, 48));
-    btn.setMinimumSize(new Dimension(200, 48));
-    return btn;
+        btn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
+        btn.setPreferredSize(new Dimension(240, 48));
+        btn.setMinimumSize(new Dimension(200, 48));
+        return btn;
     }
 
     public void showPanel(String panelName) {

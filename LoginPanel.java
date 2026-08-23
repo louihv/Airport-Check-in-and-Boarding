@@ -99,7 +99,10 @@ public class LoginPanel extends JPanel {
         btnLogin.setContentAreaFilled(false);
         btnLogin.setOpaque(false);
         btnLogin.setBorder(new RoundedOutlineBorder(1.2f, MainFrame.NAV_BTN_BG, 25));
-
+        SwingUtilities.invokeLater(() -> {
+            getRootPane().setDefaultButton(btnLogin);
+        });
+        
         btnLogin.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent e) {
                 btnLogin.setBackground(MainFrame.SECONDARY_BTN_BG);
@@ -160,8 +163,9 @@ public class LoginPanel extends JPanel {
                         msg.setForeground(Color.RED);
                         msg.setText("Check connection");
                         ex.printStackTrace();
-                    }
+                    }   
                 }
+                
             }.execute();
         });
 

@@ -1,9 +1,9 @@
-import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
 import java.util.Map;
+import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 
 public class QueueMonitoringPanel extends JPanel {
     private JTable queueTable;
@@ -38,7 +38,7 @@ public class QueueMonitoringPanel extends JPanel {
         scrollPane.getViewport().setBackground(Color.WHITE);
         scrollPane.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(new Color(180, 210, 190), 1),
-            "All Tickets (Firebase)", 0, 0, AppFonts.bold(14), new Color(27, 77, 46)
+            "All Tickets", 0, 0, AppFonts.bold(14), new Color(27, 77, 46)
         ));
 
         btnRefresh = new JButton("Refresh Tickets");
