@@ -22,7 +22,6 @@ public class PassengerMenuPanel extends JPanel {
 
         add(topBar, BorderLayout.NORTH);
 
-        //  MAIN CONTENT (Left text + Right buttons) 
         JPanel content = new JPanel(new GridLayout(1, 2, 500, 0)); 
         content.setOpaque(false);
         

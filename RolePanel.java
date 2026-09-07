@@ -28,7 +28,6 @@ public class RolePanel extends JPanel {
         btnKiosk.addActionListener(e -> frame.showPassengerMenu());
         btnLogin.addActionListener(e -> frame.showLogin());
 
-        // Side-by-side row
         JPanel buttonsRow = new JPanel();
         buttonsRow.setLayout(new BoxLayout(buttonsRow, BoxLayout.X_AXIS));
         buttonsRow.setOpaque(false);
@@ -92,7 +91,6 @@ public class RolePanel extends JPanel {
         return new ImageIcon(scaled);
     }
 
-    // Custom rounded outline border
     private static class RoundedOutlineBorder extends AbstractBorder {
         private final int thickness;
         private final Color color;

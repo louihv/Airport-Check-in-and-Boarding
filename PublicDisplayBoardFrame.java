@@ -1,8 +1,8 @@
+import java.awt.*;
+import java.util.Map;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.util.Map;
 
 public class PublicDisplayBoardFrame extends JFrame {
     private JLabel lblCurrentTicket, lblCurrentCounter;
@@ -18,7 +18,6 @@ public class PublicDisplayBoardFrame extends JFrame {
         mainPanel.setBackground(new Color(15, 30, 22));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
 
-        // Big Header Announcement Banner
         JPanel headerPanel = new JPanel(new GridLayout(2, 1, 5, 5));
         headerPanel.setOpaque(false);
 
@@ -37,7 +36,6 @@ public class PublicDisplayBoardFrame extends JFrame {
         headerPanel.add(lblAnnounce);
         headerPanel.add(lblCurrentTicket);
 
-        // Counter Status Overview Table
         String[] cols = {"Counter", "Serving Ticket", "Status"};
         activeCountersModel = new DefaultTableModel(cols, 0);
         JTable table = new JTable(activeCountersModel);
@@ -60,7 +58,6 @@ public class PublicDisplayBoardFrame extends JFrame {
 
         add(mainPanel);
 
-        // Subscribe to Queue updates
         QueueManager.getInstance().addListener(this::refreshDisplay);
         refreshDisplay();
     }

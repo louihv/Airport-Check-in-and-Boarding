@@ -39,7 +39,6 @@ public class QueueManager {
         queueList.add(p);
         notifyListeners();
 
-        // Save to Firebase in background
         new Thread(() -> {
             try {
                 FirebaseHelper.saveTicket(p);
@@ -73,7 +72,6 @@ public class QueueManager {
                 activeCounters.put(counterId, p);
                 notifyListeners();
 
-                // Update Firebase
                 new Thread(() -> {
                     try {
                         FirebaseHelper.updateTicketStatus(p.getTicketNumber(), "SERVING", counterId);

@@ -27,7 +27,6 @@ public class SystemLogsPanel extends JPanel {
         add(title, BorderLayout.NORTH);
         add(scrollPane, BorderLayout.CENTER);
 
-        // Initial system event
         addLog("SYSTEM_INIT", "System Audit Panel initialized.");
     }
 

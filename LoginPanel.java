@@ -73,9 +73,10 @@ public class LoginPanel extends JPanel {
 
         JTextField txtUser = createStyledField("Enter Username");
         JPasswordField txtPass = createStyledPasswordField("Enter Password");
+        JPanel passwordPanel = createPasswordFieldWithToggle(txtPass);
 
         addFormField(form, "Username:", txtUser, gbc, 2);
-        addFormField(form, "Password:", txtPass, gbc, 4);
+        addFormField(form, "Password:", passwordPanel, gbc, 4);
 
         JButton btnLogin = new JButton("Login") {
             @Override
@@ -128,9 +129,19 @@ public class LoginPanel extends JPanel {
             String user = getRealText(txtUser, "Enter Username");
             String pass = getRealPassword(txtPass, "Enter Password");
 
-            if (user.isEmpty() || pass.isEmpty()) {
+            if (user.isEmpty() && pass.isEmpty()) {
                 msg.setForeground(Color.RED);
                 msg.setText("Please enter username and password");
+                return;
+            }
+            if (user.isEmpty()) {
+                msg.setForeground(Color.RED);
+                msg.setText("Username is required");
+                return;
+            }
+            if (pass.isEmpty()) {
+                msg.setForeground(Color.RED);
+                msg.setText("Password is required");
                 return;
             }
 
@@ -141,7 +152,7 @@ public class LoginPanel extends JPanel {
             new SwingWorker<String[], Void>() {
                 @Override
                 protected String[] doInBackground() throws Exception {
-                    return FirebaseHelper.login(user, pass);   
+                    return FirebaseHelper.login(user, pass);
                 }
 
                 @Override
@@ -157,15 +168,14 @@ public class LoginPanel extends JPanel {
                             txtPass.setText("");
                         } else {
                             msg.setForeground(Color.RED);
-                            msg.setText("Invalid username or password");
+                            msg.setText("Invalid credentials");
                         }
                     } catch (Exception ex) {
                         msg.setForeground(Color.RED);
                         msg.setText("Check connection");
                         ex.printStackTrace();
-                    }   
+                    }
                 }
-                
             }.execute();
         });
 
@@ -224,39 +234,99 @@ public class LoginPanel extends JPanel {
     }
 
     private JPasswordField createStyledPasswordField(String placeholder) {
-        JPasswordField field = new JPasswordField(18);
-        field.setFont(AppFonts.regular(13));
-        field.setOpaque(false);
-        field.setForeground(MainFrame.SECONDARY_BTN_BG);
-        field.setCaretColor(MainFrame.NAV_BTN_BG);
-        field.setBorder(BorderFactory.createCompoundBorder(
-                new RoundedOutlineBorder(1.2f, MainFrame.NAV_BTN_BG, 25),
-                BorderFactory.createEmptyBorder(5, 16, 5, 16)
-        ));
-        field.setEchoChar((char) 0);
-        field.setText(placeholder);
-        field.setForeground(MainFrame.SECONDARY_BTN_BG);
-        field.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                String text = new String(field.getPassword());
-                if (text.equals(placeholder)) {
-                    field.setText("");
-                    field.setEchoChar('•');
-                    field.setForeground(new Color(40, 55, 50));
-                }
+    JPasswordField field = new JPasswordField(18);
+    field.setFont(AppFonts.regular(13));
+    field.setOpaque(false);
+    field.setForeground(MainFrame.SECONDARY_BTN_BG);
+    field.setCaretColor(MainFrame.NAV_BTN_BG);
+    field.setBorder(BorderFactory.createEmptyBorder(5, 16, 5, 8));
+    field.setEchoChar((char) 0);
+    field.setText(placeholder);
+    field.setForeground(MainFrame.SECONDARY_BTN_BG);
+
+    field.addFocusListener(new FocusAdapter() {
+        @Override
+        public void focusGained(FocusEvent e) {
+            String text = new String(field.getPassword());
+            if (text.equals(placeholder)) {
+                field.setText("");
+                field.setEchoChar('•');
+                field.setForeground(new Color(40, 55, 50));
             }
-            @Override
-            public void focusLost(FocusEvent e) {
-                String text = new String(field.getPassword());
-                if (text.trim().isEmpty()) {
-                    field.setEchoChar((char) 0);
-                    field.setText(placeholder);
-                    field.setForeground(MainFrame.SECONDARY_BTN_BG);
-                }
+        }
+        @Override
+        public void focusLost(FocusEvent e) {
+            String text = new String(field.getPassword());
+            if (text.trim().isEmpty()) {
+                field.setEchoChar((char) 0);
+                field.setText(placeholder);
+                field.setForeground(MainFrame.SECONDARY_BTN_BG);
             }
-        });
-        return field;
+        }
+    });
+    return field;
+}
+
+private JPanel createPasswordFieldWithToggle(JPasswordField passField) {
+    JPanel wrapper = new JPanel(new BorderLayout(0, 0)) {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+        }
+    };
+    wrapper.setOpaque(false);
+    wrapper.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedOutlineBorder(1.2f, MainFrame.NAV_BTN_BG, 25),
+            BorderFactory.createEmptyBorder(0, 0, 0, 4)
+    ));
+
+    wrapper.add(passField, BorderLayout.CENTER);
+
+    JButton eyeBtn = new JButton();
+    eyeBtn.setFocusable(false);
+    eyeBtn.setContentAreaFilled(false);
+    eyeBtn.setBorderPainted(false);
+    eyeBtn.setOpaque(false);
+    eyeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    eyeBtn.setPreferredSize(new Dimension(32, 28));
+    eyeBtn.setMargin(new Insets(0, 0, 0, 0));
+
+    ImageIcon eyeOpen = null;
+    ImageIcon eyeClosed = null;
+    try {
+        eyeOpen = new ImageIcon(new java.net.URL(
+            "https://img.icons8.com/ios-filled/20/112250/visible.png"));
+        eyeClosed = new ImageIcon(new java.net.URL(
+            "https://img.icons8.com/ios-filled/20/112250/invisible.png"));
+        eyeBtn.setIcon(eyeOpen);
+    } catch (Exception ex) {
+        eyeBtn.setText("👁");
+        eyeBtn.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
+        eyeBtn.setForeground(MainFrame.NAV_BTN_BG);
+    }
+
+    final boolean[] showing = {false};
+    final ImageIcon openIcon = eyeOpen;
+    final ImageIcon closedIcon = eyeClosed;
+
+    eyeBtn.addActionListener(e -> {
+        String current = new String(passField.getPassword());
+        if (current.equals("Enter Password")) return;
+
+        showing[0] = !showing[0];
+        if (showing[0]) {
+            passField.setEchoChar((char) 0);
+            if (closedIcon != null) eyeBtn.setIcon(closedIcon);
+            else eyeBtn.setText("🙈");
+        } else {
+            passField.setEchoChar('•');
+            if (openIcon != null) eyeBtn.setIcon(openIcon);
+            else eyeBtn.setText("👁");
+        }
+    });
+
+    wrapper.add(eyeBtn, BorderLayout.EAST);
+    return wrapper;
     }
 
     private void addFormField(JPanel panel, String labelText, JComponent field,
