@@ -8,11 +8,11 @@ public class MainFrame extends JFrame {
     private CardLayout cardLayout;
     private JPanel mainPanel;
     private JPanel sidebar;
-    private JButton btnDash, btnStaff, btnMonitor, btnReports, btnUsers, btnLogout, btnLaunchTV;
+    private JButton btnDash, btnStaff, btnFlights, btnMonitor, btnReports,btnPassenger, btnUsers, btnLogout, btnLaunchTV;
     public static final Color SIDEBAR_BG = new Color(20, 42, 31);
     public static final Color NAV_BTN_BG = new Color(17, 34, 80);
     public static final Color SECONDARY_BTN_BG = new Color(60, 81, 126);
-    public static final Color MAIN_BG = new Color(244, 239, 233);
+    public static final Color MAIN_BG = new Color(244, 239, 233); 
     private String currentRole = null; // "STAFF" or "ADMIN"
     private String currentUsername = null;
 
@@ -92,6 +92,8 @@ public class MainFrame extends JFrame {
         btnDash = createNavButton("Dashboard","https://img.icons8.com/ios-filled/50/ffffff/dashboard.png");
         btnStaff = createNavButton("Staff Counter","https://img.icons8.com/ios-filled/50/ffffff/conference-call.png");
         btnMonitor = createNavButton("Queue Monitoring","https://img.icons8.com/ios-filled/50/ffffff/monitor.png");
+        btnFlights = createNavButton("Flight Scheduler", "https://img.icons8.com/ios-filled/50/ffffff/airplane-mode-on.png");
+        btnPassenger = createNavButton("Passenger","https://img.icons8.com/ios-filled/50/ffffff/walking.png");
         btnUsers = createNavButton("User Management","https://img.icons8.com/ios-filled/50/ffffff/group-foreground-selected.png");
         btnLaunchTV = createNavButton("Launch TV Display","https://img.icons8.com/ios-filled/50/ffffff/tv.png");
         btnLogout = createNavButton("Logout","https://img.icons8.com/ios-filled/50/ffffff/exit.png");
@@ -100,6 +102,10 @@ public class MainFrame extends JFrame {
         navPanel.add(btnStaff);
         navPanel.add(Box.createVerticalStrut(6));
         navPanel.add(btnMonitor);
+        navPanel.add(Box.createVerticalStrut(6));
+        navPanel.add(btnFlights);
+        navPanel.add(Box.createVerticalStrut(6));
+        navPanel.add(btnPassenger);
         navPanel.add(Box.createVerticalStrut(6));
         navPanel.add(btnUsers);
         navPanel.add(Box.createVerticalStrut(6));
@@ -122,6 +128,8 @@ public class MainFrame extends JFrame {
         mainPanel.add(new TicketStatusPanel(this), "TicketStatus");
         mainPanel.add(new CounterStaffPanel(this), "Staff");
         mainPanel.add(new QueueMonitoringPanel(), "Monitor");
+        mainPanel.add(new PassengerPanel(this), "Passenger");
+        mainPanel.add(new FlightSchedulerPanel(this), "FlightScheduler");
         mainPanel.add(new UserManagementPanel(), "Users");
         mainPanel.add(new BaggageScannerPanel(this), "Baggage");
         mainPanel.add(new SystemLogsPanel(), "Logs");
@@ -129,6 +137,8 @@ public class MainFrame extends JFrame {
         btnDash.addActionListener(e -> cardLayout.show(mainPanel, "Dashboard"));
         btnStaff.addActionListener(e -> cardLayout.show(mainPanel, "Staff"));
         btnMonitor.addActionListener(e -> cardLayout.show(mainPanel, "Monitor"));
+        btnFlights.addActionListener(e -> cardLayout.show(mainPanel, "FlightScheduler"));
+        btnPassenger.addActionListener(e -> cardLayout.show(mainPanel, "Passenger"));
         btnLaunchTV.addActionListener(e -> new PublicDisplayBoardFrame().setVisible(true));
         btnUsers.addActionListener(e -> cardLayout.show(mainPanel, "Users"));
         btnLogout.addActionListener(e -> logout());

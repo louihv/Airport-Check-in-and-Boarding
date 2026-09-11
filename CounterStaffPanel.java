@@ -1,11 +1,10 @@
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
-import javax.swing.*;
-import javax.swing.border.AbstractBorder;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import javax.swing.*;
+import javax.swing.border.AbstractBorder;
 
 public class CounterStaffPanel extends JPanel {
     private JToggleButton[] counterButtons;
@@ -19,7 +18,6 @@ public class CounterStaffPanel extends JPanel {
 
     public CounterStaffPanel(MainFrame frame) {
         this.mainFrame = frame;
-
         setLayout(new BorderLayout(12, 12));
         setBackground(MainFrame.MAIN_BG);
         setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));

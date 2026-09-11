@@ -211,19 +211,24 @@ public class FirebaseHelper {
     }
 
     public static void saveTicket(Passenger p) throws Exception {
-        String json = String.format(
-            "{\"ticketNo\":\"%s\",\"bookingRef\":\"%s\",\"name\":\"%s\",\"flightNo\":\"%s\"," +
-            "\"baggage\":\"%s\",\"status\":\"%s\",\"counter\":%d,\"checkInTime\":\"%s\"}",
-            p.getTicketNumber(),
-            p.getBookingRef(),
-            p.getName(),
-            p.getFlightNumber(),
-            p.getBaggageInfo(),
-            p.getStatus(),
-            p.getAssignedCounter(),
-            p.getCheckInTime().toString()
-        );
-        put("tickets/" + p.getTicketNumber(), json);
+    String checkInTime = p.getCheckInTime().toString();
+    String checkInDate = p.getCheckInTime().toLocalDate().toString(); 
+
+    String json = String.format(
+        "{\"ticketNo\":\"%s\",\"bookingRef\":\"%s\",\"name\":\"%s\",\"flightNo\":\"%s\"," +
+        "\"baggage\":\"%s\",\"status\":\"%s\",\"counter\":%d," +
+        "\"checkInTime\":\"%s\",\"checkInDate\":\"%s\"}",
+        p.getTicketNumber(),
+        p.getBookingRef(),
+        p.getName(),
+        p.getFlightNumber(),
+        p.getBaggageInfo() == null ? "" : p.getBaggageInfo(),
+        p.getStatus(),
+        p.getAssignedCounter(),
+        checkInTime,
+        checkInDate
+    );
+    put("tickets/" + p.getTicketNumber(), json);    
     }
 
     public static void updateTicketStatus(String ticketNo, String status, int counter) throws Exception {
@@ -366,6 +371,37 @@ public class FirebaseHelper {
         }
         return null;
     }
+
+    public static List<java.util.Map<String, String>> getAllPassengers() throws Exception {
+        List<java.util.Map<String, String>> passengers = new ArrayList<>();
+        String data = get("passengers");
+
+        if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
+            return passengers;
+        }
+
+        Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
+        while (keyMatcher.find()) {
+            String key = keyMatcher.group(1);
+            int start = keyMatcher.end() - 1;
+            int end = findMatchingBrace(data, start);
+            if (end == -1) continue;
+
+            String obj = data.substring(start, end + 1);
+
+            java.util.Map<String, String> p = new java.util.HashMap<>();
+            p.put("passengerName",          nullToEmpty(extractJsonString(obj, "passengerName")));
+            p.put("flightId",               nullToEmpty(extractJsonString(obj, "flightId")));
+            p.put("distanceMiles",          nullToEmpty(extractJsonNumber(obj, "distanceMiles")));
+            p.put("flightDurationMinutes",  nullToEmpty(extractJsonNumber(obj, "flightDurationMinutes")));
+            p.put("priceUsd",               nullToEmpty(extractJsonNumber(obj, "priceUsd")));
+            p.put("flightStatus",           nullToEmpty(extractJsonString(obj, "flightStatus")));
+
+            passengers.add(p);
+        }
+
+        return passengers;
+    }    
 
     public static List<java.util.Map<String, String>> getAllTickets() throws Exception {
         List<java.util.Map<String, String>> tickets = new ArrayList<>();

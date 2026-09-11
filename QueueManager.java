@@ -1,10 +1,13 @@
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class QueueManager {
     private static QueueManager instance;
     private final List<Passenger> queueList = new ArrayList<>();
     private final Map<Integer, Passenger> activeCounters = new HashMap<>();
-    private int ticketCounter = 100;
+    private int ticketCounter = 100;          
+    private boolean counterLoaded = false;
     private final List<Runnable> updateListeners = new ArrayList<>();
 
     private QueueManager() {
@@ -30,7 +33,32 @@ public class QueueManager {
         }
     }
 
-    public String generateTicketNumber() {
+    private synchronized void ensureCounterLoaded() {
+        if (counterLoaded) return;
+        try {
+            List<Map<String, String>> tickets = FirebaseHelper.getAllTickets();
+            int max = 100;
+            Pattern p = Pattern.compile("Q-(\\d+)", Pattern.CASE_INSENSITIVE);
+            for (Map<String, String> t : tickets) {
+                String no = t.get("ticketNo");
+                if (no == null) continue;
+                Matcher m = p.matcher(no.trim());
+                if (m.find()) {
+                    try {
+                        int n = Integer.parseInt(m.group(1));
+                        if (n > max) max = n;
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+            ticketCounter = max;
+        } catch (Exception e) {
+            System.err.println("Could not load ticket counter from Firebase, using local: " + e.getMessage());
+        }
+        counterLoaded = true;
+    }
+
+    public synchronized String generateTicketNumber() {
+        ensureCounterLoaded();
         ticketCounter++;
         return "Q-" + ticketCounter;
     }
