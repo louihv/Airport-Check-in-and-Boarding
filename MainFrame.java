@@ -20,10 +20,11 @@ public class MainFrame extends JFrame {
     private JLabel lblRole;
 
     public MainFrame() {
-        setTitle("Airport Queuing System");
+        // setTitle("Airport Queuing System");
         setMinimumSize(new Dimension(1000, 650));
         setExtendedState(JFrame.MAXIMIZED_BOTH);
-        setUndecorated(false);
+        setUndecorated(true);
+        setBackground(MAIN_BG);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
@@ -133,8 +134,11 @@ public class MainFrame extends JFrame {
         btnLogout.addActionListener(e -> logout());
 
         setLayout(new BorderLayout());
+
+        add(createCustomTitleBar(), BorderLayout.NORTH);
         add(sidebar, BorderLayout.WEST);
         add(mainPanel, BorderLayout.CENTER);
+
         cardLayout.show(mainPanel, "Role");
     }
 
@@ -306,5 +310,170 @@ public class MainFrame extends JFrame {
         public Insets getBorderInsets(Component c) {
             return new Insets(radius / 3, radius / 2, radius / 3, radius / 2);
         }
+    }
+
+    private JPanel createCustomTitleBar() {
+    JPanel titleBar = new JPanel(new BorderLayout());
+    titleBar.setBackground(MAIN_BG);
+    titleBar.setPreferredSize(new Dimension(0, 35));
+
+    JPanel leftPanel = new JPanel(new FlowLayout(
+            FlowLayout.LEFT,
+            12,
+            0
+    ));
+
+    leftPanel.setOpaque(false);
+
+    JLabel logoLabel = new JLabel();
+
+    try {
+        URL logoUrl = getClass().getResource("/resources/logo.png");
+
+        if (logoUrl != null) {
+
+            ImageIcon original = new ImageIcon(logoUrl);
+
+            Image scaled = original.getImage().getScaledInstance(
+                    26,
+                    26,
+                    Image.SCALE_SMOOTH
+            );
+
+            logoLabel.setIcon(new ImageIcon(scaled));
+        }
+
+    } catch (Exception e) {
+        System.err.println("Could not load title bar logo: "
+                + e.getMessage());
+    }
+
+    // App name
+    JLabel title = new JLabel("Orion Skyways");
+
+    title.setFont(AppFonts.regular(13));
+    title.setForeground(new Color(55, 55, 55));
+
+    leftPanel.add(logoLabel);
+    leftPanel.add(title);
+
+    JPanel windowButtons = new JPanel(
+            new FlowLayout(
+                    FlowLayout.RIGHT,
+                    0,
+                    0
+            )
+    );
+
+    windowButtons.setOpaque(false);
+
+    JButton minimizeButton = createWindowButton("https://img.icons8.com/?size=50&id=1504&format=png&color=3c517e");
+    JButton maximizeButton = createWindowButton("https://img.icons8.com/?size=50&id=x23tBPwES2tB&format=png&color=3c517e");
+    JButton closeButton = createWindowButton( "https://img.icons8.com/?size=50&id=46&format=png&color=3c517e");
+
+    minimizeButton.addActionListener(e ->
+            setState(JFrame.ICONIFIED)
+    );
+
+    maximizeButton.addActionListener(e -> {
+
+        if ((getExtendedState() & JFrame.MAXIMIZED_BOTH)
+                == JFrame.MAXIMIZED_BOTH) {
+
+            setExtendedState(JFrame.NORMAL);
+
+        } else {
+
+            setExtendedState(JFrame.MAXIMIZED_BOTH);
+        }
+    });
+
+    // Close
+    closeButton.addActionListener(e -> {
+
+        dispose();
+        System.exit(0);
+
+    });
+
+    windowButtons.add(minimizeButton);
+    windowButtons.add(maximizeButton);
+    windowButtons.add(closeButton);
+
+    titleBar.add(leftPanel, BorderLayout.WEST);
+    titleBar.add(windowButtons, BorderLayout.EAST);
+
+    final Point[] mouseDown = {null};
+
+    titleBar.addMouseListener(
+        new java.awt.event.MouseAdapter() {
+
+            @Override
+            public void mousePressed(
+                    java.awt.event.MouseEvent e) {
+
+                mouseDown[0] = e.getPoint();
+            }
+        }
+    );
+
+    titleBar.addMouseMotionListener(
+        new java.awt.event.MouseMotionAdapter() {
+
+            @Override
+            public void mouseDragged(
+                    java.awt.event.MouseEvent e) {
+
+                if (mouseDown[0] != null &&
+                    (getExtendedState()
+                        & JFrame.MAXIMIZED_BOTH) == 0) {
+
+                    Point location = getLocation();
+
+                    setLocation(
+                        location.x
+                            + e.getX()
+                            - mouseDown[0].x,
+
+                        location.y
+                            + e.getY()
+                            - mouseDown[0].y
+                    );
+                }
+            }
+        }
+    );
+
+    return titleBar;
+    }
+
+    private JButton createWindowButton(String iconUrl) {
+    JButton btn = new JButton();
+
+    try {
+        ImageIcon original = new ImageIcon(new URL(iconUrl));
+
+        if (original.getIconWidth() > 0) {
+            Image scaled = original.getImage().getScaledInstance(
+                18, 18, Image.SCALE_SMOOTH
+            );
+            btn.setIcon(new ImageIcon(scaled));
+        } else {
+            System.err.println("Icon failed to load: " + iconUrl);
+        }
+
+    } catch (Exception e) {
+        System.err.println("Could not load icon: " + iconUrl);
+        e.printStackTrace();
+    }
+
+    btn.setOpaque(false);
+    btn.setContentAreaFilled(false);
+    btn.setBorderPainted(false);
+    btn.setFocusPainted(false);
+    btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    btn.setPreferredSize(new Dimension(42, 32));
+
+    return btn;
     }
 }

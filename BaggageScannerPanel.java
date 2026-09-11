@@ -125,7 +125,7 @@ public class BaggageScannerPanel extends JPanel {
         gbc.insets = new Insets(22, 10, 6, 10);
         formCard.add(btnProcess, gbc);
 
-        lblStatus = new JLabel("Ready to scan...", SwingConstants.CENTER);
+        lblStatus = new JLabel("...", SwingConstants.CENTER);
         lblStatus.setFont(AppFonts.italic(12));
         lblStatus.setForeground(MainFrame.NAV_BTN_BG);
 

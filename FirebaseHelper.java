@@ -421,6 +421,45 @@ public class FirebaseHelper {
         return waiting;
     }
 
+    public static Map<String, String> getServingTicketForCounter(int counter) throws Exception {
+    List<Map<String, String>> all = getAllTickets();
+    for (Map<String, String> t : all) {
+        if ("SERVING".equalsIgnoreCase(t.get("status"))) {
+            try {
+                if (Integer.parseInt(t.get("counter")) == counter) {
+                    return t;
+                }
+            } catch (NumberFormatException ignored) {}
+        }
+    }
+    return null;
+}
+
+    public static List<Map<String, String>> getTicketsByStatus(String status) throws Exception {
+        List<Map<String, String>> all = getAllTickets();
+        List<Map<String, String>> filtered = new ArrayList<>();
+        for (Map<String, String> t : all) {
+            if (status.equalsIgnoreCase(t.get("status"))) {
+                filtered.add(t);
+            }
+        }
+        return filtered;
+    }
+
+    public static int countByStatus(String status) throws Exception {
+        return getTicketsByStatus(status).size();
+    }
+
+    public static int countByStatusAndCounter(String status, int counter) throws Exception {
+        int count = 0;
+        for (Map<String, String> t : getTicketsByStatus(status)) {
+            try {
+                if (Integer.parseInt(t.get("counter")) == counter) count++;
+            } catch (NumberFormatException ignored) {}
+        }
+        return count;
+    }
+
     public static java.util.Map<String, String> getTicketByNumber(String ticketNo) throws Exception {
         if (ticketNo == null || ticketNo.trim().isEmpty()) return null;
         List<java.util.Map<String, String>> all = getAllTickets();

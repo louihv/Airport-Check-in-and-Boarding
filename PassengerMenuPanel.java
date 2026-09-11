@@ -114,7 +114,6 @@ public class PassengerMenuPanel extends JPanel {
 
     private JButton createBackButton(String iconPath) {
         JButton btn = new JButton();
-
         try {
             ImageIcon original = new ImageIcon(getClass().getResource(iconPath));
             Image scaled = original.getImage().getScaledInstance(22, 22, Image.SCALE_SMOOTH);
@@ -122,28 +121,12 @@ public class PassengerMenuPanel extends JPanel {
         } catch (Exception e) {
             System.err.println("Could not load icon: " + iconPath);
         }
-
         btn.setContentAreaFilled(false);
         btn.setOpaque(false);
         btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setFocusPainted(false);
-
-        btn.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent e) {
-                btn.setBackground(MainFrame.NAV_BTN_BG);
-                btn.setContentAreaFilled(true);
-                btn.setOpaque(true);
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent e) {
-                btn.setContentAreaFilled(false);
-                btn.setOpaque(false);
-            }
-        });
-
+        
         return btn;
     }
 
