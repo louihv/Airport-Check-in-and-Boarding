@@ -1,10 +1,12 @@
 import java.awt.*;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Map;
 import javax.swing.*;
+import javax.swing.border.AbstractBorder;
 import javax.swing.border.EmptyBorder;
 
 public class TicketStatusPanel extends JPanel {
@@ -242,6 +244,67 @@ public class TicketStatusPanel extends JPanel {
         }
     }
 
+    private void showModernMessage(String message, String title, boolean isError) {
+        JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), title, Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setUndecorated(true);
+        dialog.setBackground(new Color(0, 0, 0, 0));
+        dialog.setLayout(new BorderLayout());
+
+        JPanel content = (JPanel) dialog.getContentPane();
+        content.setOpaque(false);
+        content.setLayout(new BorderLayout());
+
+        JPanel card = new JPanel(new BorderLayout(0, 16)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 16, 16));
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedOutlineBorder(1, MainFrame.SECONDARY_BTN_BG, 16),
+                BorderFactory.createEmptyBorder(24, 28, 24, 28)
+        ));
+
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(AppFonts.bold(16));
+        lblTitle.setForeground(isError ? new Color(180, 50, 50) : MainFrame.NAV_BTN_BG);
+
+        JLabel lblMsg = new JLabel("<html><body style='width:280px'>" + message.replace("\n", "<br>") + "</body></html>");
+        lblMsg.setFont(AppFonts.regular(13));
+        lblMsg.setForeground(new Color(50, 65, 55));
+
+        JButton ok = new JButton("OK");
+        ok.setFont(AppFonts.bold(13));
+        ok.setBackground(isError ? new Color(180, 50, 50) : MainFrame.SECONDARY_BTN_BG);
+        ok.setForeground(Color.WHITE);
+        ok.setFocusPainted(false);
+        ok.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        ok.setBorder(BorderFactory.createEmptyBorder(10, 24, 10, 24));
+        ok.setOpaque(true);
+        ok.setContentAreaFilled(true);
+        ok.setPreferredSize(new Dimension(100, 36));
+        ok.addActionListener(e -> dialog.dispose());
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        btnRow.setOpaque(false);
+        btnRow.add(ok);
+
+        card.add(lblTitle, BorderLayout.NORTH);
+        card.add(lblMsg, BorderLayout.CENTER);
+        card.add(btnRow, BorderLayout.SOUTH);
+
+        content.add(card, BorderLayout.CENTER);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
     private void updateStatusDisplay() {
         lblTicketValue.setText("Loading...");
         lblStatusValue.setText("...");
@@ -280,6 +343,9 @@ public class TicketStatusPanel extends JPanel {
                     lblStatusValue.setText("Could not reach Firebase");
                     lblPositionValue.setText("--");
                     lblEstWaitValue.setText("--");
+                    showModernMessage(
+                            "Could not reach Firebase.\nCheck your internet connection.",
+                            "Connection Error", true);
                     return;
                 }
 
@@ -296,6 +362,9 @@ public class TicketStatusPanel extends JPanel {
                         lblStatusValue.setText("--");
                         lblPositionValue.setText("--");
                         lblEstWaitValue.setText("--");
+                        showModernMessage(
+                                "Ticket \"" + searchTicket + "\" was not found.",
+                                "Not Found", true);
                     }
                 }
             }
@@ -373,7 +442,6 @@ public class TicketStatusPanel extends JPanel {
         btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setFocusPainted(false);
-    
         return btn;
     }
 
@@ -425,6 +493,38 @@ public class TicketStatusPanel extends JPanel {
     private String getRealText(JTextField field, String placeholder) {
         String text = field.getText().trim();
         return text.equals(placeholder) ? "" : text;
+    }
+
+    private static class RoundedOutlineBorder extends AbstractBorder {
+        private final int thickness;
+        private final Color color;
+        private final int radius;
+
+        public RoundedOutlineBorder(int thickness, Color color, int radius) {
+            this.thickness = thickness;
+            this.color = color;
+            this.radius = radius;
+        }
+
+        @Override
+        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(thickness));
+            g2.draw(new RoundRectangle2D.Float(
+                    x + thickness / 2f,
+                    y + thickness / 2f,
+                    width - thickness,
+                    height - thickness,
+                    radius, radius));
+            g2.dispose();
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c) {
+            return new Insets(8, 14, 8, 14);
+        }
     }
 
     private static class RoundedBorder implements javax.swing.border.Border {

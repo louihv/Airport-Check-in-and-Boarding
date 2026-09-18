@@ -6,11 +6,12 @@ public class Passenger {
     private String flightNumber;
     private String baggageInfo;
     private String ticketNumber;
-    private String status; // "WAITING", "SERVING", "COMPLETED", "SKIPPED"
+    private String status; 
     private int assignedCounter;
     private LocalDateTime checkInTime;
+    private String cabin = "Economy";
 
-    public Passenger(String bookingRef, String name, String flightNumber, String baggageInfo, String ticketNumber) {
+    public Passenger(String bookingRef, String name, String flightNumber, String baggageInfo, String ticketNumber, String cabin) {
         this.bookingRef = bookingRef;
         this.name = name;
         this.flightNumber = flightNumber;
@@ -31,4 +32,6 @@ public class Passenger {
     public int getAssignedCounter() { return assignedCounter; }
     public void setAssignedCounter(int assignedCounter) { this.assignedCounter = assignedCounter; }
     public LocalDateTime getCheckInTime() { return checkInTime; }
+    public String getCabin() { return cabin; }
+    public void setCabin(String cabin) { this.cabin = cabin; }
 }

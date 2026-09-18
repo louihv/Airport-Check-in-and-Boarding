@@ -8,18 +8,21 @@ import javax.swing.plaf.basic.BasicComboBoxUI;
 import javax.swing.plaf.basic.BasicScrollBarUI;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 
 public class PassengerPanel extends JPanel {
     private DefaultTableModel tableModel;
-    private JTextField txtPassengerName, txtFlightId, txtDistance, txtDuration, txtPrice;
-    private JComboBox<String> cmbStatus;
-    private JButton btnSave, btnRefresh;
+    private JTable table;
+    private JTextField txtBookingRef, txtPassengerName, txtFlightId, txtDistance, txtDuration, txtPrice;
+    private JComboBox<String> cmbStatus, cmbCabin;
+    private JButton btnSave, btnRefresh, btnEdit, btnDelete;
     private MainFrame mainFrame;
+    private String editingKey = null;
 
     public PassengerPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
         setBackground(MainFrame.MAIN_BG);
-        setLayout(new BorderLayout(15, 15));
+        setLayout(new BorderLayout(16, 16));
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         JLabel title = new JLabel("Passenger Management");
@@ -27,24 +30,40 @@ public class PassengerPanel extends JPanel {
         title.setForeground(new Color(40, 40, 40));
         add(title, BorderLayout.NORTH);
 
-        JPanel center = new JPanel(new GridLayout(1, 2, 20, 0));
+        JPanel center = new JPanel(new GridLayout(1, 2, 18, 0));
         center.setOpaque(false);
 
-        JPanel left = createRoundedCard();
-        left.setLayout(new BorderLayout(0, 16));
-        left.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
+        center.add(createFormCard());
+        center.add(createTableCard());
+        add(center, BorderLayout.CENTER);
+
+        btnSave.addActionListener(e -> savePassenger());
+        btnRefresh.addActionListener(e -> loadPassengers());
+        btnEdit.addActionListener(e -> editSelected());
+        btnDelete.addActionListener(e -> deleteSelected());
+
+        table.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2) editSelected();
+            }
+        });
+
+        loadPassengers();
+    }
+
+    private JPanel createFormCard() {
+        JPanel card = createRoundedCard();
+        card.setLayout(new BorderLayout(0, 14));
+        card.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
 
         JPanel leftHeader = new JPanel(new BorderLayout(0, 10));
         leftHeader.setOpaque(false);
-
         JLabel leftTitle = new JLabel("Add / Update Passenger");
         leftTitle.setFont(AppFonts.bold(16));
         leftTitle.setForeground(new Color(40, 40, 40));
-
         JSeparator divider = new JSeparator();
         divider.setForeground(new Color(220, 220, 220));
-        divider.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
-
         leftHeader.add(leftTitle, BorderLayout.NORTH);
         leftHeader.add(divider, BorderLayout.SOUTH);
 
@@ -52,41 +71,60 @@ public class PassengerPanel extends JPanel {
         form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
         form.setOpaque(false);
 
+        txtBookingRef = createOutlineField();
         txtPassengerName = createOutlineField();
         txtFlightId = createOutlineField();
         txtDistance = createOutlineField();
         txtDuration = createOutlineField();
         txtPrice = createOutlineField();
-        cmbStatus = new JComboBox<>(new String[]{"On Time", "Delayed", "Boarding", "Departed", "Cancelled"});
-        styleCombo(cmbStatus);
 
-        form.add(createFieldBlock("Passenger Name:", txtPassengerName));
-        form.add(Box.createVerticalStrut(12));
-        form.add(createFieldBlock("Flight ID:", txtFlightId));
-        form.add(Box.createVerticalStrut(12));
-        form.add(createFieldBlock("Distance (Miles):", txtDistance));
-        form.add(Box.createVerticalStrut(12));
-        form.add(createFieldBlock("Duration (Minutes):", txtDuration));
-        form.add(Box.createVerticalStrut(12));
-        form.add(createFieldBlock("Price (USD):", txtPrice));
-        form.add(Box.createVerticalStrut(12));
-        form.add(createFieldBlock("Flight Status:", cmbStatus));
+        cmbCabin = createStyledCombo(new String[]{"Economy", "Premium Economy", "Business", "First Class"});
+        cmbStatus = createStyledCombo(new String[]{"On Time", "Delayed", "Boarding", "Departed", "Cancelled"});
+
+        form.add(createFieldBlock("Booking Reference", txtBookingRef));
+        form.add(Box.createVerticalStrut(11));
+        form.add(createFieldBlock("Passenger Name", txtPassengerName));
+        form.add(Box.createVerticalStrut(11));
+        form.add(createFieldBlock("Flight ID", txtFlightId));
+        form.add(Box.createVerticalStrut(11));
+        form.add(createFieldBlock("Distance (Miles)", txtDistance));
+        form.add(Box.createVerticalStrut(11));
+        form.add(createFieldBlock("Duration (Minutes)", txtDuration));
+        form.add(Box.createVerticalStrut(11));
+        form.add(createFieldBlock("Price (USD)", txtPrice));
+        form.add(Box.createVerticalStrut(11));
+        form.add(createFieldBlock("Cabin Class", cmbCabin));
+        form.add(Box.createVerticalStrut(11));
+        form.add(createFieldBlock("Flight Status", cmbStatus));
+        form.add(Box.createVerticalStrut(6));
+
+        JScrollPane formScroll = new JScrollPane(form);
+        formScroll.setBorder(BorderFactory.createEmptyBorder());
+        formScroll.setOpaque(false);
+        formScroll.getViewport().setOpaque(false);
+        formScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        formScroll.getVerticalScrollBar().setUnitIncrement(16);
+        formScroll.getVerticalScrollBar().setUI(new ModernScrollBarUI());
+        formScroll.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
 
         btnSave = createFilledButton("Save Passenger");
 
-        left.add(leftHeader, BorderLayout.NORTH);
-        left.add(form, BorderLayout.CENTER);
-        left.add(btnSave, BorderLayout.SOUTH);
+        card.add(leftHeader, BorderLayout.NORTH);
+        card.add(formScroll, BorderLayout.CENTER);
+        card.add(btnSave, BorderLayout.SOUTH);
+        return card;
+    }
 
-        JPanel right = createRoundedCard();
-        right.setLayout(new BorderLayout(0, 12));
-        right.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
+    private JPanel createTableCard() {
+        JPanel card = createRoundedCard();
+        card.setLayout(new BorderLayout(0, 12));
+        card.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
 
         JLabel rightTitle = new JLabel("All Passengers");
         rightTitle.setFont(AppFonts.bold(16));
         rightTitle.setForeground(new Color(40, 40, 40));
 
-        String[] cols = {"Passenger Name", "Flight ID", "Distance", "Duration", "Price", "Status"};
+        String[] cols = {"Booking Ref", "Passenger Name", "Flight ID", "Cabin", "Price", "Status"};
         tableModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -94,75 +132,65 @@ public class PassengerPanel extends JPanel {
             }
         };
 
-        JTable table = new JTable(tableModel);
+        table = new JTable(tableModel);
         styleTable(table);
-        table.setTableHeader(null);
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-        JPanel tableOuter = new JPanel(new BorderLayout(0, 10));
-        tableOuter.setOpaque(false);
-
-        JPanel headerPanel = new JPanel(new GridLayout(1, cols.length, 0, 0)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(MainFrame.SECONDARY_BTN_BG);
-                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 18, 18));
-                g2.dispose();
-            }
-        };
-        headerPanel.setOpaque(false);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(12, 18, 12, 18));
-        headerPanel.setPreferredSize(new Dimension(0, 46));
-
-        for (String col : cols) {
-            JLabel lbl = new JLabel(col);
-            lbl.setForeground(Color.WHITE);
-            lbl.setFont(AppFonts.bold(12));
-            lbl.setHorizontalAlignment(SwingConstants.LEFT);
-            headerPanel.add(lbl);
+        int[] colWidths = {140, 170, 110, 130, 90, 110};
+        for (int i = 0; i < colWidths.length; i++) {
+            table.getColumnModel().getColumn(i).setPreferredWidth(colWidths[i]);
+            table.getColumnModel().getColumn(i).setMinWidth(90);
         }
 
-        JPanel bodyCard = new JPanel(new BorderLayout()) {
+        JTableHeader header = table.getTableHeader();
+        header.setFont(AppFonts.bold(12));
+        header.setForeground(Color.WHITE);
+        header.setBackground(MainFrame.SECONDARY_BTN_BG);
+        header.setReorderingAllowed(false);
+        header.setResizingAllowed(true);
+        header.setPreferredSize(new Dimension(header.getWidth(), 42));
+        header.setDefaultRenderer(new DefaultTableCellRenderer() {
             @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE);
-                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 12, 12));
-                g2.dispose();
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                                                           boolean isSelected, boolean hasFocus,
+                                                           int row, int column) {
+                JLabel lbl = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                lbl.setBackground(MainFrame.SECONDARY_BTN_BG);
+                lbl.setForeground(Color.WHITE);
+                lbl.setFont(AppFonts.bold(12));
+                lbl.setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 14));
+                lbl.setHorizontalAlignment(JLabel.LEFT);
+                lbl.setOpaque(true);
+                return lbl;
             }
-        };
-        bodyCard.setOpaque(false);
+        });
 
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getViewport().setBackground(Color.WHITE);
         scrollPane.setOpaque(false);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.getVerticalScrollBar().setUI(new ModernScrollBarUI());
         scrollPane.getHorizontalScrollBar().setUI(new ModernScrollBarUI());
         scrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
         scrollPane.getHorizontalScrollBar().setPreferredSize(new Dimension(0, 8));
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        bodyCard.add(scrollPane, BorderLayout.CENTER);
+        scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
 
-        tableOuter.add(headerPanel, BorderLayout.NORTH);
-        tableOuter.add(bodyCard, BorderLayout.CENTER);
+        JPanel actionRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actionRow.setOpaque(false);
+        btnEdit = createOutlineButton("Edit");
+        btnDelete = createOutlineButton("Delete");
+        btnRefresh = createOutlineButton("Refresh");
+        actionRow.add(btnEdit);
+        actionRow.add(btnDelete);
+        actionRow.add(btnRefresh);
 
-        btnRefresh = createOutlineButton("Refresh Passengers");
-
-        right.add(rightTitle, BorderLayout.NORTH);
-        right.add(tableOuter, BorderLayout.CENTER);
-        right.add(btnRefresh, BorderLayout.SOUTH);
-
-        center.add(left);
-        center.add(right);
-        add(center, BorderLayout.CENTER);
-
-        btnSave.addActionListener(e -> savePassenger());
-        btnRefresh.addActionListener(e -> loadPassengers());
-
-        loadPassengers();
+        card.add(rightTitle, BorderLayout.NORTH);
+        card.add(scrollPane, BorderLayout.CENTER);
+        card.add(actionRow, BorderLayout.SOUTH);
+        return card;
     }
 
     private JPanel createRoundedCard() {
@@ -192,7 +220,7 @@ public class PassengerPanel extends JPanel {
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         field.setAlignmentX(Component.LEFT_ALIGNMENT);
-        field.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+        field.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
 
         block.add(label);
         block.add(Box.createVerticalStrut(6));
@@ -206,22 +234,32 @@ public class PassengerPanel extends JPanel {
         field.setBorder(new RoundedOutlineBorder(1, new Color(216, 203, 194), 10));
         field.setBackground(Color.WHITE);
         field.setOpaque(true);
+        field.setPreferredSize(new Dimension(0, 42));
         return field;
     }
 
-    private void styleCombo(JComboBox<String> combo) {
+    private JComboBox<String> createStyledCombo(String[] items) {
+        JComboBox<String> combo = new JComboBox<>(items);
         combo.setFont(AppFonts.regular(13));
         combo.setBackground(Color.WHITE);
         combo.setForeground(new Color(40, 40, 40));
-        combo.setBorder(new RoundedOutlineBorder(1, new Color(216, 203, 194), 10));
-        combo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+        combo.setPreferredSize(new Dimension(0, 42));
+        combo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+        combo.setMinimumSize(new Dimension(80, 42));
+
         combo.setUI(new ModernComboBoxUI());
+        combo.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedOutlineBorder(1, new Color(216, 203, 194), 10),
+                BorderFactory.createEmptyBorder(2, 6, 2, 4)
+        ));
+
         combo.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index,
                                                           boolean isSelected, boolean cellHasFocus) {
                 JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                label.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+                label.setFont(AppFonts.regular(13));
+                label.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
                 if (isSelected) {
                     label.setBackground(MainFrame.NAV_BTN_BG);
                     label.setForeground(Color.WHITE);
@@ -229,9 +267,12 @@ public class PassengerPanel extends JPanel {
                     label.setBackground(Color.WHITE);
                     label.setForeground(new Color(40, 40, 40));
                 }
+                label.setOpaque(true);
                 return label;
             }
         });
+
+        return combo;
     }
 
     private JButton createFilledButton(String text) {
@@ -259,7 +300,7 @@ public class PassengerPanel extends JPanel {
         btn.setFocusPainted(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        btn.setPreferredSize(new Dimension(160, 40));
+        btn.setPreferredSize(new Dimension(160, 42));
         return btn;
     }
 
@@ -284,7 +325,7 @@ public class PassengerPanel extends JPanel {
         btn.setFocusPainted(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setBorder(new RoundedOutlineBorder(1, new Color(216, 203, 194), 12));
-        btn.setPreferredSize(new Dimension(160, 38));
+        btn.setPreferredSize(new Dimension(110, 38));
         return btn;
     }
 
@@ -299,6 +340,7 @@ public class PassengerPanel extends JPanel {
         table.setSelectionBackground(new Color(245, 248, 250));
         table.setSelectionForeground(new Color(40, 40, 40));
         table.setBackground(Color.WHITE);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
@@ -306,15 +348,11 @@ public class PassengerPanel extends JPanel {
                                                            boolean isSelected, boolean hasFocus,
                                                            int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                setBorder(BorderFactory.createEmptyBorder(0, 18, 0, 18));
+                setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 14));
                 setHorizontalAlignment(JLabel.LEFT);
 
                 if (!isSelected) {
-                    if (row % 2 == 0) {
-                        setBackground(Color.WHITE);
-                    } else {
-                        setBackground(new Color(250, 251, 252));
-                    }
+                    setBackground(row % 2 == 0 ? Color.WHITE : new Color(250, 251, 252));
                 }
 
                 if (column == 5 && value != null) {
@@ -330,10 +368,364 @@ public class PassengerPanel extends JPanel {
                 } else {
                     setForeground(new Color(40, 40, 40));
                 }
-
                 return c;
             }
         });
+    }
+
+    private void showInfo(String message) {
+        showModernMessage(message, "Passenger Management", false);
+    }
+
+    private void showError(String message) {
+        showModernMessage(message, "Error", true);
+    }
+
+    private void showWarn(String message) {
+        showModernMessage(message, "Notice", true);
+    }
+
+    private boolean confirm(String message) {
+        return showModernConfirm(message, "Confirm");
+    }
+
+    private void showModernMessage(String message, String title, boolean isError) {
+        JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), title, Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setUndecorated(true);
+        dialog.setBackground(new Color(0, 0, 0, 0));
+        dialog.setLayout(new BorderLayout());
+
+        JPanel content = (JPanel) dialog.getContentPane();
+        content.setOpaque(false);
+        content.setLayout(new BorderLayout());
+
+        JPanel card = new JPanel(new BorderLayout(0, 16)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 16, 16));
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedOutlineBorder(1, MainFrame.SECONDARY_BTN_BG, 16),
+                BorderFactory.createEmptyBorder(24, 28, 24, 28)
+        ));
+
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(AppFonts.bold(16));
+        lblTitle.setForeground(isError ? new Color(180, 50, 50) : MainFrame.NAV_BTN_BG);
+
+        JLabel lblMsg = new JLabel("<html><body style='width:280px'>" + message.replace("\n", "<br>") + "</body></html>");
+        lblMsg.setFont(AppFonts.regular(13));
+        lblMsg.setForeground(new Color(50, 65, 55));
+
+        JButton ok = new JButton("OK");
+        ok.setFont(AppFonts.bold(13));
+        ok.setBackground(isError ? new Color(180, 50, 50) : MainFrame.SECONDARY_BTN_BG);
+        ok.setForeground(Color.WHITE);
+        ok.setFocusPainted(false);
+        ok.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        ok.setBorder(BorderFactory.createEmptyBorder(10, 24, 10, 24));
+        ok.setOpaque(true);
+        ok.setContentAreaFilled(true);
+        ok.setPreferredSize(new Dimension(100, 36));
+        ok.addActionListener(e -> dialog.dispose());
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        btnRow.setOpaque(false);
+        btnRow.add(ok);
+
+        card.add(lblTitle, BorderLayout.NORTH);
+        card.add(lblMsg, BorderLayout.CENTER);
+        card.add(btnRow, BorderLayout.SOUTH);
+
+        content.add(card, BorderLayout.CENTER);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private boolean showModernConfirm(String message, String title) {
+        final boolean[] result = {false};
+
+        JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), title, Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setUndecorated(true);
+        dialog.setBackground(new Color(0, 0, 0, 0));
+        dialog.setLayout(new BorderLayout());
+
+        JPanel content = (JPanel) dialog.getContentPane();
+        content.setOpaque(false);
+        content.setLayout(new BorderLayout());
+
+        JPanel card = new JPanel(new BorderLayout(0, 16)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 16, 16));
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedOutlineBorder(1, MainFrame.SECONDARY_BTN_BG, 16),
+                BorderFactory.createEmptyBorder(24, 28, 24, 28)
+        ));
+
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(AppFonts.bold(16));
+        lblTitle.setForeground(MainFrame.NAV_BTN_BG);
+
+        JLabel lblMsg = new JLabel("<html><body style='width:280px'>" + message.replace("\n", "<br>") + "</body></html>");
+        lblMsg.setFont(AppFonts.regular(13));
+        lblMsg.setForeground(new Color(50, 65, 55));
+
+        JButton no = new JButton("Cancel");
+        no.setFont(AppFonts.bold(13));
+        no.setBackground(new Color(120, 130, 125));
+        no.setForeground(Color.WHITE);
+        no.setFocusPainted(false);
+        no.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        no.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        no.setOpaque(true);
+        no.setContentAreaFilled(true);
+        no.setPreferredSize(new Dimension(100, 36));
+        no.addActionListener(e -> dialog.dispose());
+
+        JButton yes = new JButton("Confirm");
+        yes.setFont(AppFonts.bold(13));
+        yes.setBackground(new Color(220, 70, 70));
+        yes.setForeground(Color.WHITE);
+        yes.setFocusPainted(false);
+        yes.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        yes.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        yes.setOpaque(true);
+        yes.setContentAreaFilled(true);
+        yes.setPreferredSize(new Dimension(100, 36));
+        yes.addActionListener(e -> {
+            result[0] = true;
+            dialog.dispose();
+        });
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnRow.setOpaque(false);
+        btnRow.add(no);
+        btnRow.add(yes);
+
+        card.add(lblTitle, BorderLayout.NORTH);
+        card.add(lblMsg, BorderLayout.CENTER);
+        card.add(btnRow, BorderLayout.SOUTH);
+
+        content.add(card, BorderLayout.CENTER);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+
+        return result[0];
+    }
+
+    private void savePassenger() {
+        String bookingRef = txtBookingRef.getText().trim().toUpperCase();
+        String name = txtPassengerName.getText().trim();
+        String flightId = txtFlightId.getText().trim().toUpperCase();
+        String distance = txtDistance.getText().trim();
+        String duration = txtDuration.getText().trim();
+        String price = txtPrice.getText().trim();
+        String cabin = (String) cmbCabin.getSelectedItem();
+        String status = (String) cmbStatus.getSelectedItem();
+
+        if (bookingRef.isEmpty() || name.isEmpty() || flightId.isEmpty()
+                || distance.isEmpty() || duration.isEmpty() || price.isEmpty()) {
+            showWarn("Please fill in all required fields.");
+            return;
+        }
+
+        btnSave.setEnabled(false);
+
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                if (editingKey != null && !editingKey.equals(bookingRef)) {
+                    FirebaseHelper.delete("passengers/" + editingKey);
+                }
+
+                String json = String.format(
+                    "{\"bookingRef\":\"%s\",\"passengerName\":\"%s\",\"flightId\":\"%s\"," +
+                    "\"distanceMiles\":%s,\"flightDurationMinutes\":%s,\"priceUsd\":%s," +
+                    "\"cabin\":\"%s\",\"flightStatus\":\"%s\"}",
+                    bookingRef, name, flightId, distance, duration, price, cabin, status
+                );
+
+                FirebaseHelper.put("passengers/" + bookingRef, json);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                btnSave.setEnabled(true);
+                try {
+                    get();
+                    showInfo(editingKey != null ? "Passenger updated successfully." : "Passenger saved successfully.");
+                    editingKey = null;
+                    btnSave.setText("Save Passenger");
+                    clearForm();
+                    loadPassengers();
+                } catch (Exception ex) {
+                    showError("Failed to save passenger.\nCheck your internet connection or Firebase URL.");
+                    ex.printStackTrace();
+                }
+            }
+        }.execute();
+    }
+
+    private void editSelected() {
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            showWarn("Please select a passenger from the table first.");
+            return;
+        }
+
+        String bookingRef = String.valueOf(tableModel.getValueAt(row, 0));
+        editingKey = bookingRef.equals("-") ? null : bookingRef;
+
+        txtBookingRef.setText(bookingRef.equals("-") ? "" : bookingRef);
+        txtPassengerName.setText(String.valueOf(tableModel.getValueAt(row, 1)));
+        txtFlightId.setText(String.valueOf(tableModel.getValueAt(row, 2)));
+        cmbCabin.setSelectedItem(String.valueOf(tableModel.getValueAt(row, 3)));
+        txtPrice.setText(String.valueOf(tableModel.getValueAt(row, 4)));
+        cmbStatus.setSelectedItem(String.valueOf(tableModel.getValueAt(row, 5)));
+
+        new SwingWorker<Map<String, String>, Void>() {
+            @Override
+            protected Map<String, String> doInBackground() throws Exception {
+                List<Map<String, String>> all = FirebaseHelper.getAllPassengers();
+                if (all != null) {
+                    for (Map<String, String> p : all) {
+                        String ref = p.getOrDefault("bookingRef", p.getOrDefault("id", ""));
+                        if (bookingRef.equalsIgnoreCase(ref)) return p;
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    Map<String, String> p = get();
+                    if (p != null) {
+                        txtDistance.setText(p.getOrDefault("distanceMiles", ""));
+                        txtDuration.setText(p.getOrDefault("flightDurationMinutes", ""));
+                        if (p.get("cabin") != null) cmbCabin.setSelectedItem(p.get("cabin"));
+                        if (p.get("flightStatus") != null) cmbStatus.setSelectedItem(p.get("flightStatus"));
+                    }
+                } catch (Exception ignored) {}
+                btnSave.setText("Update Passenger");
+            }
+        }.execute();
+    }
+
+    private void deleteSelected() {
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            showWarn("Please select a passenger from the table first.");
+            return;
+        }
+
+        String bookingRef = String.valueOf(tableModel.getValueAt(row, 0));
+        if (bookingRef.equals("-") || bookingRef.isEmpty()) {
+            showWarn("Invalid booking reference.");
+            return;
+        }
+
+        if (!confirm("Delete passenger \"" + bookingRef + "\"?\nThis action cannot be undone.")) return;
+
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                FirebaseHelper.delete("passengers/" + bookingRef);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get();
+                    if (bookingRef.equals(editingKey)) {
+                        editingKey = null;
+                        btnSave.setText("Save Passenger");
+                        clearForm();
+                    }
+                    loadPassengers();
+                    showInfo("Passenger deleted successfully.");
+                } catch (Exception ex) {
+                    showError("Failed to delete passenger.");
+                }
+            }
+        }.execute();
+    }
+
+    private void clearForm() {
+        txtBookingRef.setText("");
+        txtPassengerName.setText("");
+        txtFlightId.setText("");
+        txtDistance.setText("");
+        txtDuration.setText("");
+        txtPrice.setText("");
+        cmbCabin.setSelectedIndex(0);
+        cmbStatus.setSelectedIndex(0);
+        editingKey = null;
+        btnSave.setText("Save Passenger");
+    }
+
+    private void loadPassengers() {
+        btnRefresh.setEnabled(false);
+
+        new SwingWorker<List<Map<String, String>>, Void>() {
+            @Override
+            protected List<Map<String, String>> doInBackground() throws Exception {
+                return FirebaseHelper.getAllPassengers();
+            }
+
+            @Override
+            protected void done() {
+                btnRefresh.setEnabled(true);
+                try {
+                    List<Map<String, String>> passengers = get();
+                    tableModel.setRowCount(0);
+
+                    if (passengers != null) {
+                        for (Map<String, String> p : passengers) {
+                            String ref = p.get("bookingRef");
+                            if (ref == null || ref.trim().isEmpty()) {
+                                ref = p.get("id");
+                            }
+                            if (ref == null || ref.trim().isEmpty()) {
+                                ref = "-";
+                            }
+
+                            tableModel.addRow(new Object[]{
+                                ref,
+                                p.getOrDefault("passengerName", "-"),
+                                p.getOrDefault("flightId", "-"),
+                                p.getOrDefault("cabin", "Economy"),
+                                p.getOrDefault("priceUsd", "-"),
+                                p.getOrDefault("flightStatus", "-")
+                            });
+                        }
+                    }
+                } catch (Exception ex) {
+                    showError("Failed to load passengers.\nCheck your internet connection or Firebase URL.");
+                    ex.printStackTrace();
+                }
+            }
+        }.execute();
     }
 
     private static class ModernComboBoxUI extends BasicComboBoxUI {
@@ -346,17 +738,26 @@ public class PassengerPanel extends JPanel {
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                     int w = getWidth();
                     int h = getHeight();
-                    g2.setColor(new Color(120, 120, 120));
+                    g2.setColor(new Color(100, 100, 100));
                     int[] xPoints = {w / 2 - 4, w / 2 + 4, w / 2};
                     int[] yPoints = {h / 2 - 2, h / 2 - 2, h / 2 + 3};
                     g2.fillPolygon(xPoints, yPoints, 3);
                     g2.dispose();
+                }
+
+                @Override
+                public Dimension getPreferredSize() {
+                    return new Dimension(28, 28);
                 }
             };
             button.setBorder(BorderFactory.createEmptyBorder());
             button.setContentAreaFilled(false);
             button.setFocusable(false);
             return button;
+        }
+
+        @Override
+        public void paintCurrentValueBackground(Graphics g, Rectangle bounds, boolean hasFocus) {
         }
     }
 
@@ -433,100 +834,13 @@ public class PassengerPanel extends JPanel {
 
         @Override
         public Insets getBorderInsets(Component c) {
-            return new Insets(8, 14, 8, 14);
-        }
-    }
-
-    private void savePassenger() {
-        String name = txtPassengerName.getText().trim();
-        String flightId = txtFlightId.getText().trim().toUpperCase();
-        String distance = txtDistance.getText().trim();
-        String duration = txtDuration.getText().trim();
-        String price = txtPrice.getText().trim();
-        String status = (String) cmbStatus.getSelectedItem();
-
-        if (name.isEmpty() || flightId.isEmpty() || distance.isEmpty() || duration.isEmpty() || price.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "All fields are required");
-            return;
+            return new Insets(8, 12, 8, 12);
         }
 
-        btnSave.setEnabled(false);
-
-        new SwingWorker<Void, Void>() {
-            @Override
-            protected Void doInBackground() throws Exception {
-                String json = String.format(
-                    "{\"passengerName\":\"%s\",\"flightId\":\"%s\",\"distanceMiles\":%s,\"flightDurationMinutes\":%s,\"priceUsd\":%s,\"flightStatus\":\"%s\"}",
-                    name, flightId, distance, duration, price, status
-                );
-                // Adjust the path key as needed for your Firebase structure
-                String key = name.replaceAll("\\s+", "_") + "_" + flightId;
-                FirebaseHelper.put("passengers/" + key, json);
-                return null;
-            }
-
-            @Override
-            protected void done() {
-                btnSave.setEnabled(true);
-                try {
-                    get();
-                    JOptionPane.showMessageDialog(PassengerPanel.this, "Passenger saved successfully");
-                    clearForm();
-                    loadPassengers();
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(PassengerPanel.this,
-                        "Failed to save passenger.\nCheck internet / Firebase URL.",
-                        "Error", JOptionPane.ERROR_MESSAGE);
-                    ex.printStackTrace();
-                }
-            }
-        }.execute();
-    }
-
-    private void clearForm() {
-        txtPassengerName.setText("");
-        txtFlightId.setText("");
-        txtDistance.setText("");
-        txtDuration.setText("");
-        txtPrice.setText("");
-        cmbStatus.setSelectedIndex(0);
-    }
-
-    private void loadPassengers() {
-        btnRefresh.setEnabled(false);
-
-        new SwingWorker<List<Map<String, String>>, Void>() {
-            @Override
-            protected List<Map<String, String>> doInBackground() throws Exception {
-                return FirebaseHelper.getAllPassengers();
-            }
-
-            @Override
-            protected void done() {
-                btnRefresh.setEnabled(true);
-                try {
-                    List<Map<String, String>> passengers = get();
-                    tableModel.setRowCount(0);
-
-                    if (passengers != null) {
-                        for (Map<String, String> p : passengers) {
-                            tableModel.addRow(new Object[]{
-                                p.getOrDefault("passengerName", "-"),
-                                p.getOrDefault("flightId", "-"),
-                                p.getOrDefault("distanceMiles", "-"),
-                                p.getOrDefault("flightDurationMinutes", "-"),
-                                p.getOrDefault("priceUsd", "-"),
-                                p.getOrDefault("flightStatus", "-")
-                            });
-                        }
-                    }
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(PassengerPanel.this,
-                        "Failed to load passengers.\nCheck internet / Firebase URL.",
-                        "Error", JOptionPane.ERROR_MESSAGE);
-                    ex.printStackTrace();
-                }
-            }
-        }.execute();
+        @Override
+        public Insets getBorderInsets(Component c, Insets insets) {
+            insets.set(8, 12, 8, 12);
+            return insets;
+        }
     }
 }

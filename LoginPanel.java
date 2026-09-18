@@ -130,18 +130,15 @@ public class LoginPanel extends JPanel {
             String pass = getRealPassword(txtPass, "Enter Password");
 
             if (user.isEmpty() && pass.isEmpty()) {
-                msg.setForeground(Color.RED);
-                msg.setText("Please enter username and password");
+                showModernMessage("Please enter username and password.", "Login", true);
                 return;
             }
             if (user.isEmpty()) {
-                msg.setForeground(Color.RED);
-                msg.setText("Username is required");
+                showModernMessage("Username is required.", "Login", true);
                 return;
             }
             if (pass.isEmpty()) {
-                msg.setForeground(Color.RED);
-                msg.setText("Password is required");
+                showModernMessage("Password is required.", "Login", true);
                 return;
             }
 
@@ -167,12 +164,12 @@ public class LoginPanel extends JPanel {
                             txtUser.setText("");
                             txtPass.setText("");
                         } else {
-                            msg.setForeground(Color.RED);
-                            msg.setText("Invalid credentials");
+                            msg.setText(" ");
+                            showModernMessage("Invalid username or password.", "Login Failed", true);
                         }
                     } catch (Exception ex) {
-                        msg.setForeground(Color.RED);
-                        msg.setText("Check connection");
+                        msg.setText(" ");
+                        showModernMessage("Could not connect.\nCheck your internet or Firebase URL.", "Connection Error", true);
                         ex.printStackTrace();
                     }
                 }
@@ -231,6 +228,67 @@ public class LoginPanel extends JPanel {
             }
         });
         return field;
+    }
+
+    private void showModernMessage(String message, String title, boolean isError) {
+        JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), title, Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setUndecorated(true);
+        dialog.setBackground(new Color(0, 0, 0, 0));
+        dialog.setLayout(new BorderLayout());
+
+        JPanel content = (JPanel) dialog.getContentPane();
+        content.setOpaque(false);
+        content.setLayout(new BorderLayout());
+
+        JPanel card = new JPanel(new BorderLayout(0, 16)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 16, 16));
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedOutlineBorder(1, MainFrame.SECONDARY_BTN_BG, 16),
+                BorderFactory.createEmptyBorder(24, 28, 24, 28)
+        ));
+
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(AppFonts.bold(16));
+        lblTitle.setForeground(isError ? new Color(180, 50, 50) : MainFrame.NAV_BTN_BG);
+
+        JLabel lblMsg = new JLabel("<html><body style='width:260px'>" + message.replace("\n", "<br>") + "</body></html>");
+        lblMsg.setFont(AppFonts.regular(13));
+        lblMsg.setForeground(new Color(50, 65, 55));
+
+        JButton ok = new JButton("OK");
+        ok.setFont(AppFonts.bold(13));
+        ok.setBackground(isError ? new Color(180, 50, 50) : MainFrame.SECONDARY_BTN_BG);
+        ok.setForeground(Color.WHITE);
+        ok.setFocusPainted(false);
+        ok.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        ok.setBorder(BorderFactory.createEmptyBorder(10, 24, 10, 24));
+        ok.setOpaque(true);
+        ok.setContentAreaFilled(true);
+        ok.setPreferredSize(new Dimension(100, 36));
+        ok.addActionListener(e -> dialog.dispose());
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        btnRow.setOpaque(false);
+        btnRow.add(ok);
+
+        card.add(lblTitle, BorderLayout.NORTH);
+        card.add(lblMsg, BorderLayout.CENTER);
+        card.add(btnRow, BorderLayout.SOUTH);
+
+        content.add(card, BorderLayout.CENTER);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 
     private JPasswordField createStyledPasswordField(String placeholder) {

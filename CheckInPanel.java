@@ -1,14 +1,17 @@
 import java.awt.*;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.Map;
 import javax.swing.*;
+import javax.swing.border.AbstractBorder;
 import javax.swing.border.EmptyBorder;
 
 public class CheckInPanel extends JPanel {
 
     private JTextField txtBookingRef, txtName, txtFlight, txtBaggage;
+    private JComboBox<String> cmbCabin;
     private final MainFrame mainFrame;
     private BufferedImage backgroundImage;
 
@@ -96,10 +99,18 @@ public class CheckInPanel extends JPanel {
         txtFlight = createStyledField("Enter your Flight Number");
         txtBaggage = createStyledField("Enter your Baggage Details");
 
+        cmbCabin = new JComboBox<>(new String[]{
+            "Economy", "Premium Economy", "Business", "First Class"
+        });
+        cmbCabin.setSelectedItem("Economy");
+        cmbCabin.setFont(AppFonts.regular(13));
+        cmbCabin.setBackground(Color.WHITE);
+
         addFormField(formCard, "Booking Reference:", txtBookingRef, gbc, 3);
         addFormField(formCard, "Passenger Name:", txtName, gbc, 5);
         addFormField(formCard, "Flight Number:", txtFlight, gbc, 7);
         addFormField(formCard, "Baggage Details:", txtBaggage, gbc, 9);
+        addComboField(formCard, "Cabin Class:", cmbCabin, gbc, 11);
 
         JButton btnSubmit = new JButton("Join Queue") {
             @Override
@@ -133,7 +144,7 @@ public class CheckInPanel extends JPanel {
             }
         });
 
-        gbc.gridy = 11;
+        gbc.gridy = 13;
         gbc.insets = new Insets(22, 10, 6, 10);
         formCard.add(btnSubmit, gbc);
 
@@ -177,7 +188,6 @@ public class CheckInPanel extends JPanel {
         btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setFocusPainted(false);
-        
         return btn;
     }
 
@@ -226,17 +236,80 @@ public class CheckInPanel extends JPanel {
         panel.add(field, gbc);
     }
 
+    private void addComboField(JPanel panel, String labelText, JComboBox<String> combo,
+                               GridBagConstraints gbc, int row) {
+        gbc.gridy = row;
+        gbc.insets = new Insets(6, 10, 2, 10);
+        JLabel label = new JLabel(labelText);
+        label.setFont(AppFonts.regular(13));
+        label.setForeground(MainFrame.NAV_BTN_BG);
+        panel.add(label, gbc);
+
+        gbc.gridy = row + 1;
+        gbc.insets = new Insets(0, 5, 10, 10);
+        panel.add(combo, gbc);
+    }
+
+    private void showModernMessage(String message, String title, boolean isError) {
+        JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), title, Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setUndecorated(true);
+        dialog.setBackground(new Color(0, 0, 0, 0));
+        dialog.setLayout(new BorderLayout());
+
+        JPanel content = (JPanel) dialog.getContentPane();
+        content.setOpaque(false);
+        content.setLayout(new BorderLayout());
+
+        RoundedPanel card = new RoundedPanel(16, Color.WHITE);
+        card.setLayout(new BorderLayout(0, 16));
+        card.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedOutlineBorder(1, MainFrame.SECONDARY_BTN_BG, 16),
+                BorderFactory.createEmptyBorder(24, 28, 24, 28)
+        ));
+
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(AppFonts.bold(16));
+        lblTitle.setForeground(isError ? new Color(180, 50, 50) : MainFrame.NAV_BTN_BG);
+
+        JLabel lblMsg = new JLabel("<html><body style='width:280px'>" + message.replace("\n", "<br>") + "</body></html>");
+        lblMsg.setFont(AppFonts.regular(13));
+        lblMsg.setForeground(new Color(50, 65, 55));
+
+        JButton ok = new JButton("OK");
+        ok.setFont(AppFonts.bold(13));
+        ok.setBackground(isError ? new Color(180, 50, 50) : MainFrame.SECONDARY_BTN_BG);
+        ok.setForeground(Color.WHITE);
+        ok.setFocusPainted(false);
+        ok.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        ok.setBorder(BorderFactory.createEmptyBorder(10, 24, 10, 24));
+        ok.setOpaque(true);
+        ok.setContentAreaFilled(true);
+        ok.setPreferredSize(new Dimension(100, 36));
+        ok.addActionListener(e -> dialog.dispose());
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        btnRow.setOpaque(false);
+        btnRow.add(ok);
+
+        card.add(lblTitle, BorderLayout.NORTH);
+        card.add(lblMsg, BorderLayout.CENTER);
+        card.add(btnRow, BorderLayout.SOUTH);
+
+        content.add(card, BorderLayout.CENTER);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
     private void processCheckIn(JButton btnSubmit) {
         String ref = getRealText(txtBookingRef, "Enter your Booking Reference");
         String name = getRealText(txtName, "Enter your Passenger Name");
         String flight = getRealText(txtFlight, "Enter your Flight Number");
         String baggage = getRealText(txtBaggage, "Enter your Baggage Details");
+        String cabin = (String) cmbCabin.getSelectedItem();
 
         if (ref.isEmpty() || name.isEmpty() || flight.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "Please fill in all required fields.",
-                    "Missing Information",
-                    JOptionPane.WARNING_MESSAGE);
+            showModernMessage("Please fill in all required fields.", "Missing Information", true);
             return;
         }
 
@@ -260,33 +333,33 @@ public class CheckInPanel extends JPanel {
                 try {
                     boolean valid = get();
                     if (!valid) {
-                        JOptionPane.showMessageDialog(CheckInPanel.this,
+                        showModernMessage(
                                 "Passenger not found or details do not match.\n"
                               + "Please verify your booking reference, name and flight number.",
-                                "Validation Failed",
-                                JOptionPane.ERROR_MESSAGE);
+                                "Validation Failed", true);
                         return;
                     }
 
                     QueueManager qm = QueueManager.getInstance();
                     String ticketNo = qm.generateTicketNumber();
-                    Passenger passenger = new Passenger(ref, name, flight, baggage, ticketNo);
+                    Passenger passenger = new Passenger(ref, name, flight, baggage, ticketNo, cabin);
+                    passenger.setCabin(cabin);
                     qm.addPassenger(passenger);
 
-                    JOptionPane.showMessageDialog(CheckInPanel.this,
-                            "Check-in Successful!\nQueue Ticket Issued: " + ticketNo,
-                            "Queue Ticket Generated",
-                            JOptionPane.INFORMATION_MESSAGE);
+                    showModernMessage(
+                            "Check-in successful!\nQueue Ticket Issued: " + ticketNo
+                          + "\nCabin: " + cabin,
+                            "Queue Ticket Generated", false);
 
                     resetField(txtBookingRef, "Enter your Booking Reference");
                     resetField(txtName, "Enter your Passenger Name");
                     resetField(txtFlight, "Enter your Flight Number");
                     resetField(txtBaggage, "Enter your Baggage Details");
+                    cmbCabin.setSelectedItem("Economy");
                 } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(CheckInPanel.this,
+                    showModernMessage(
                             "Failed to validate passenger.\nCheck internet / Firebase connection.",
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE);
+                            "Error", true);
                     ex.printStackTrace();
                 }
             }
@@ -301,6 +374,59 @@ public class CheckInPanel extends JPanel {
     private void resetField(JTextField field, String placeholder) {
         field.setText(placeholder);
         field.setForeground(MainFrame.SECONDARY_BTN_BG);
+    }
+
+    private static class RoundedPanel extends JPanel {
+        private final int radius;
+        private final Color bg;
+
+        public RoundedPanel(int radius, Color bg) {
+            this.radius = radius;
+            this.bg = bg;
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(bg);
+            g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, radius, radius));
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    private static class RoundedOutlineBorder extends AbstractBorder {
+        private final int thickness;
+        private final Color color;
+        private final int radius;
+
+        public RoundedOutlineBorder(int thickness, Color color, int radius) {
+            this.thickness = thickness;
+            this.color = color;
+            this.radius = radius;
+        }
+
+        @Override
+        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(thickness));
+            g2.draw(new RoundRectangle2D.Float(
+                    x + thickness / 2f,
+                    y + thickness / 2f,
+                    width - thickness,
+                    height - thickness,
+                    radius, radius));
+            g2.dispose();
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c) {
+            return new Insets(8, 14, 8, 14);
+        }
     }
 
     private static class RoundedBorder implements javax.swing.border.Border {

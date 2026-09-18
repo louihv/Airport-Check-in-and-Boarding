@@ -222,6 +222,148 @@ public class DashboardPanel extends JPanel {
         });
     }
 
+    private void showModernMessage(String message, String title, boolean isError) {
+        JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), title, Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setUndecorated(true);
+        dialog.setBackground(new Color(0, 0, 0, 0));
+        dialog.setLayout(new BorderLayout());
+
+        JPanel content = (JPanel) dialog.getContentPane();
+        content.setOpaque(false);
+        content.setLayout(new BorderLayout());
+
+        JPanel card = new JPanel(new BorderLayout(0, 16)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 16, 16));
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedOutlineBorder(1, MainFrame.SECONDARY_BTN_BG, 16),
+                BorderFactory.createEmptyBorder(24, 28, 24, 28)
+        ));
+
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(AppFonts.bold(16));
+        lblTitle.setForeground(isError ? new Color(180, 50, 50) : MainFrame.NAV_BTN_BG);
+
+        JLabel lblMsg = new JLabel("<html><body style='width:280px'>" + message.replace("\n", "<br>") + "</body></html>");
+        lblMsg.setFont(AppFonts.regular(13));
+        lblMsg.setForeground(new Color(50, 65, 55));
+
+        JButton ok = new JButton("OK");
+        ok.setFont(AppFonts.bold(13));
+        ok.setBackground(isError ? new Color(180, 50, 50) : MainFrame.SECONDARY_BTN_BG);
+        ok.setForeground(Color.WHITE);
+        ok.setFocusPainted(false);
+        ok.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        ok.setBorder(BorderFactory.createEmptyBorder(10, 24, 10, 24));
+        ok.setOpaque(true);
+        ok.setContentAreaFilled(true);
+        ok.setPreferredSize(new Dimension(100, 36));
+        ok.addActionListener(e -> dialog.dispose());
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        btnRow.setOpaque(false);
+        btnRow.add(ok);
+
+        card.add(lblTitle, BorderLayout.NORTH);
+        card.add(lblMsg, BorderLayout.CENTER);
+        card.add(btnRow, BorderLayout.SOUTH);
+
+        content.add(card, BorderLayout.CENTER);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    public void refreshData() {
+        btnRefresh.setEnabled(false);
+
+        new SwingWorker<Void, Void>() {
+            private int totalTickets = 0;
+            private int activeCounters = 0;
+            private int servedCount = 0;
+            private List<Map<String, String>> flights;
+            private Map<String, Integer> waitingPerFlight = new HashMap<>();
+
+            @Override
+            protected Void doInBackground() throws Exception {
+                List<Map<String, String>> tickets = FirebaseHelper.getAllTickets();
+                totalTickets = tickets.size();
+
+                for (Map<String, String> t : tickets) {
+                    String status = t.get("status");
+                    String flight = t.get("flightNo");
+
+                    if ("COMPLETED".equalsIgnoreCase(status) || "SERVED".equalsIgnoreCase(status)) {
+                        servedCount++;
+                    } else {
+                        if (flight != null && !flight.isEmpty()) {
+                            waitingPerFlight.put(flight, waitingPerFlight.getOrDefault(flight, 0) + 1);
+                        }
+                    }
+                }
+
+                List<Object[]> users = FirebaseHelper.getAllUsers();
+                activeCounters = 0;
+                if (users != null) {
+                    for (Object[] u : users) {
+                        String role = String.valueOf(u[1]);
+                        String status = String.valueOf(u[3]);
+
+                        if ("STAFF".equalsIgnoreCase(role) && "Online".equalsIgnoreCase(status)) {
+                            activeCounters++;
+                        }
+                    }
+                }
+
+                flights = FirebaseHelper.getAllFlights();
+
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                btnRefresh.setEnabled(true);
+                try {
+                    get();
+
+                    lblTotalQueue.setText(String.valueOf(totalTickets));
+                    lblActiveCounters.setText(activeCounters + "/4");
+                    lblTotalServed.setText(String.valueOf(servedCount));
+
+                    tableModel.setRowCount(0);
+
+                    if (flights != null) {
+                        for (Map<String, String> f : flights) {
+                            String flightNo = f.getOrDefault("flightNo", "-");
+                            String status = f.getOrDefault("status", "Unknown");
+                            int waiting = waitingPerFlight.getOrDefault(flightNo, 0);
+
+                            tableModel.addRow(new Object[]{
+                                flightNo,
+                                waiting,
+                                status
+                            });
+                        }
+                    }
+                } catch (Exception ex) {
+                    showModernMessage(
+                            "Failed to load dashboard data.\nCheck internet / Firebase URL.",
+                            "Error", true);
+                    ex.printStackTrace();
+                }
+            }
+        }.execute();
+    }
+
     private static class ModernScrollBarUI extends BasicScrollBarUI {
         @Override
         protected void configureScrollBarColors() {
@@ -297,86 +439,5 @@ public class DashboardPanel extends JPanel {
         public Insets getBorderInsets(Component c) {
             return new Insets(8, 16, 8, 16);
         }
-    }
-
-    public void refreshData() {
-        btnRefresh.setEnabled(false);
-
-        new SwingWorker<Void, Void>() {
-            private int totalTickets = 0;
-            private int activeCounters = 0;
-            private int servedCount = 0;
-            private List<Map<String, String>> flights;
-            private Map<String, Integer> waitingPerFlight = new HashMap<>();
-
-            @Override
-            protected Void doInBackground() throws Exception {
-                List<Map<String, String>> tickets = FirebaseHelper.getAllTickets();
-                totalTickets = tickets.size();
-
-                for (Map<String, String> t : tickets) {
-                    String status = t.get("status");
-                    String flight = t.get("flightNo");
-
-                    if ("COMPLETED".equalsIgnoreCase(status) || "SERVED".equalsIgnoreCase(status)) {
-                        servedCount++;
-                    } else {
-                        if (flight != null && !flight.isEmpty()) {
-                            waitingPerFlight.put(flight, waitingPerFlight.getOrDefault(flight, 0) + 1);
-                        }
-                    }
-                }
-
-                List<Object[]> users = FirebaseHelper.getAllUsers();
-                activeCounters = 0;
-                if (users != null) {
-                    for (Object[] u : users) {
-                        String role   = String.valueOf(u[1]);
-                        String status = String.valueOf(u[3]);
-
-                        if ("STAFF".equalsIgnoreCase(role) && "Online".equalsIgnoreCase(status)) {
-                            activeCounters++;
-                        }
-                    }
-                }
-
-                flights = FirebaseHelper.getAllFlights();
-
-                return null;
-            }
-
-            @Override
-            protected void done() {
-                btnRefresh.setEnabled(true);
-                try {
-                    get();
-
-                    lblTotalQueue.setText(String.valueOf(totalTickets));
-                    lblActiveCounters.setText(activeCounters + "/4");
-                    lblTotalServed.setText(String.valueOf(servedCount));
-
-                    tableModel.setRowCount(0);
-
-                    if (flights != null) {
-                        for (Map<String, String> f : flights) {
-                            String flightNo = f.getOrDefault("flightNo", "-");
-                            String status = f.getOrDefault("status", "Unknown");
-                            int waiting = waitingPerFlight.getOrDefault(flightNo, 0);
-
-                            tableModel.addRow(new Object[]{
-                                flightNo,
-                                waiting,
-                                status
-                            });
-                        }
-                    }
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(DashboardPanel.this,
-                        "Failed to load dashboard data.\nCheck internet / Firebase URL.",
-                        "Error", JOptionPane.ERROR_MESSAGE);
-                    ex.printStackTrace();
-                }
-            }
-        }.execute();
     }
 }

@@ -12,6 +12,7 @@ public class CounterStaffPanel extends JPanel {
     private JLabel lblServingTicket, lblPassengerName, lblFlight, lblBaggage;
     private JLabel lblCurrentTicket, lblNextTicket;
     private JLabel lblDone, lblRemaining, lblUpcoming, lblSkipped, lblTransferred, lblOnHold;
+    private JButton btnRefresh;
     private JLabel lblWaited;
     private MainFrame mainFrame;
     private String currentTicketNo = null;
@@ -28,8 +29,11 @@ public class CounterStaffPanel extends JPanel {
         JLabel lblSelect = new JLabel("Assigned Counter:");
         lblSelect.setFont(AppFonts.bold(13));
         lblSelect.setForeground(new Color(27, 77, 46));
+        btnRefresh = createOutlineButton("Refresh Tickets");
+
         topBar.add(lblSelect);
         topBar.add(createCounterSelector());
+        topBar.add(btnRefresh);
 
         JPanel centerStack = new JPanel();
         centerStack.setLayout(new BoxLayout(centerStack, BoxLayout.Y_AXIS));
@@ -56,16 +60,16 @@ public class CounterStaffPanel extends JPanel {
         ));
 
         JLabel title = new JLabel("Current Customer");
-        title.setFont(AppFonts.bold(15));
-        title.setForeground(new Color(27, 77, 46));
+        title.setFont(AppFonts.bold(30));
+        title.setForeground(MainFrame.SECONDARY_BTN_BG);
 
         JPanel info = new JPanel();
         info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
         info.setOpaque(false);
 
         lblServingTicket = new JLabel("---");
-        lblServingTicket.setFont(AppFonts.bold(22));
-        lblServingTicket.setForeground(new Color(27, 77, 46));
+        lblServingTicket.setFont(AppFonts.bold(40));
+        lblServingTicket.setForeground(MainFrame.SECONDARY_BTN_BG);
 
         lblPassengerName = createDetailLabel("Name: ");
         lblFlight = createDetailLabel("Flight: ");
@@ -115,11 +119,11 @@ public class CounterStaffPanel extends JPanel {
                 BorderFactory.createEmptyBorder(12, 14, 12, 14)
         ));
         JLabel currentLbl = new JLabel("Current");
-        currentLbl.setFont(AppFonts.regular(11));
-        currentLbl.setForeground(new Color(100, 115, 105));
+        currentLbl.setFont(AppFonts.bold(40));
+        currentLbl.setForeground(MainFrame.SECONDARY_BTN_BG);
         lblCurrentTicket = new JLabel("---");
-        lblCurrentTicket.setFont(AppFonts.bold(26));
-        lblCurrentTicket.setForeground(new Color(27, 77, 46));
+        lblCurrentTicket.setFont(AppFonts.bold(80));
+        lblCurrentTicket.setForeground(MainFrame.SECONDARY_BTN_BG);
         currentBox.add(currentLbl, BorderLayout.NORTH);
         currentBox.add(lblCurrentTicket, BorderLayout.CENTER);
 
@@ -138,10 +142,10 @@ public class CounterStaffPanel extends JPanel {
         nextTicketBox.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
         nextTicketBox.setPreferredSize(new Dimension(140, 0));
         JLabel nextLbl = new JLabel("Next Ticket");
-        nextLbl.setFont(AppFonts.regular(11));
+        nextLbl.setFont(AppFonts.bold(30));
         nextLbl.setForeground(new Color(180, 190, 195));
         lblNextTicket = new JLabel("---");
-        lblNextTicket.setFont(AppFonts.bold(22));
+        lblNextTicket.setFont(AppFonts.bold(70));
         lblNextTicket.setForeground(Color.WHITE);
         nextTicketBox.add(nextLbl, BorderLayout.NORTH);
         nextTicketBox.add(lblNextTicket, BorderLayout.CENTER);
@@ -213,6 +217,31 @@ public class CounterStaffPanel extends JPanel {
         card.add(t, BorderLayout.NORTH);
         card.add(v, BorderLayout.CENTER);
         return v;
+    }
+
+    private JButton createOutlineButton(String text) {
+        JButton btn = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                if (getModel().isPressed()) {
+                    g.setColor(new Color(0, 0, 0, 30));
+                    g.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                } else if (getModel().isRollover()) {
+                    g.setColor(new Color(0, 0, 0, 15));
+                    g.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                }
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(AppFonts.bold(13));
+        btn.setContentAreaFilled(false);
+        btn.setOpaque(false);
+        btn.setForeground(MainFrame.NAV_BTN_BG);
+        btn.setFocusPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setBorder(new RoundedOutlineBorder(1, new Color(216, 203, 194), 12));
+        btn.setPreferredSize(new Dimension(160, 38));
+        return btn;
     }
 
     private JButton createColoredButton(String text, Color bg) {
@@ -437,7 +466,6 @@ public class CounterStaffPanel extends JPanel {
             btn.setContentAreaFilled(false);
             btn.setOpaque(true);
 
-            // default look
             btn.setBackground(Color.WHITE);
             btn.setForeground(new Color(27, 77, 46));
 
@@ -460,7 +488,6 @@ public class CounterStaffPanel extends JPanel {
             strip.add(btn);
         }
 
-        // select counter 1 by default
         counterButtons[0].setSelected(true);
 
         return strip;
@@ -469,7 +496,12 @@ public class CounterStaffPanel extends JPanel {
     private void showModernMessage(String message, String title, boolean isError) {
         JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), title, Dialog.ModalityType.APPLICATION_MODAL);
         dialog.setUndecorated(true);
+        dialog.setBackground(new Color(0, 0, 0, 0));
         dialog.setLayout(new BorderLayout());
+
+        JPanel content = (JPanel) dialog.getContentPane();
+        content.setOpaque(false);
+        content.setLayout(new BorderLayout());
 
         RoundedPanel card = new RoundedPanel(16, Color.WHITE);
         card.setLayout(new BorderLayout(0, 16));
@@ -498,7 +530,7 @@ public class CounterStaffPanel extends JPanel {
         card.add(lblMsg, BorderLayout.CENTER);
         card.add(btnRow, BorderLayout.SOUTH);
 
-        dialog.add(card);
+        content.add(card, BorderLayout.CENTER);
         dialog.pack();
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
