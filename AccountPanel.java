@@ -37,10 +37,19 @@ public class AccountPanel extends JPanel {
         forceChangeOverlay = createForceChangeOverlay();
         forceChangeOverlay.setVisible(false);
 
-        JLayeredPane layered = new JLayeredPane();
-        layered.setLayout(new OverlayLayout(layered));
+       JLayeredPane layered = new JLayeredPane() {
+            @Override
+            public void doLayout() {
+                center.setBounds(0, 0, getWidth(), getHeight());
+                forceChangeOverlay.setBounds(0, 0, getWidth(), getHeight());
+            }
+        };
+
+        layered.setLayout(null);
+
         layered.add(center, JLayeredPane.DEFAULT_LAYER);
         layered.add(forceChangeOverlay, JLayeredPane.PALETTE_LAYER);
+
         add(layered, BorderLayout.CENTER);
 
         btnChangePassword.addActionListener(e -> changePassword());
@@ -168,17 +177,20 @@ public class AccountPanel extends JPanel {
         title.setForeground(new Color(180, 50, 50));
         title.setHorizontalAlignment(SwingConstants.CENTER);
 
+        JPanel msgPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        msgPanel.setOpaque(false);
+
         JLabel msg = new JLabel(
-            "<html><div style='text-align:center;width:340px'>" +
+            "<html><div style='text-align:center'>" +
             "This is your first login or your account was just created.<br>" +
             "You must set a new password before continuing." +
             "</div></html>"
         );
         msg.setFont(AppFonts.regular(13));
         msg.setForeground(new Color(50, 65, 55));
-        msg.setHorizontalAlignment(SwingConstants.CENTER);
+        msgPanel.add(msg);
 
-        JButton go = createFilledButton("Set New Password Now");
+        JButton go = createFilledButton("Set New Password");
         go.addActionListener(e -> {
             forceChangeOverlay.setVisible(false);
             txtCurrentPass.requestFocusInWindow();
