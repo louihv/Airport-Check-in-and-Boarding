@@ -8,7 +8,8 @@ import javax.swing.border.AbstractBorder;
 
 public class CounterStaffPanel extends JPanel {
     private JToggleButton[] counterButtons;
-    private int selectedCounter = 1;
+    private int selectedCounter = 0;
+    private ButtonGroup counterGroup;
     private JLabel lblServingTicket, lblPassengerName, lblFlight, lblBaggage;
     private JLabel lblGate, lblSeat, lblDate;
     private JLabel lblCurrentTicket, lblNextTicket;
@@ -50,8 +51,9 @@ public class CounterStaffPanel extends JPanel {
         add(centerStack, BorderLayout.CENTER);
 
         SwingUtilities.invokeLater(() -> {
-            updateOnlineStatus();
-            loadCurrentServingTicket();
+            clearDisplay();
+            refreshNextTicket();
+            refreshStats();
         });
     }
 
@@ -359,7 +361,28 @@ public class CounterStaffPanel extends JPanel {
         return btn;
     }
 
+    private String currentUser() {
+        String u = mainFrame.getCurrentUsername();
+        return u == null ? "" : u;
+    }
+
+    private boolean requireCounter() {
+        if (selectedCounter == 0) {
+            showModernMessage("Please select your counter first.", "Select Counter", false);
+            return false;
+        }
+        return true;
+    }
+
+    public void resetCounter() {
+        currentTicketNo = null;
+        selectedCounter = 0;
+        if (counterGroup != null) counterGroup.clearSelection();
+        clearDisplay();
+    }
+
     private void loadCurrentServingTicket() {
+        if (selectedCounter == 0) return;
         int counter = selectedCounter;
 
         new SwingWorker<Map<String, String>, Void>() {
@@ -392,7 +415,9 @@ public class CounterStaffPanel extends JPanel {
     }
 
     private void autoCallFirstPassenger() {
-        if (currentTicketNo != null) return;
+        if (currentTicketNo != null || selectedCounter == 0) return;
+
+        final String user = currentUser();
 
         new SwingWorker<Map<String, String>, Void>() {
             @Override
@@ -414,7 +439,7 @@ public class CounterStaffPanel extends JPanel {
                     }
                     int counter = selectedCounter;
                     String ticketNo = next.get("ticketNo");
-                    FirebaseHelper.updateTicketStatus(ticketNo, "SERVING", counter);
+                    FirebaseHelper.updateTicketStatus(ticketNo, "SERVING", counter, user);
                     currentTicketNo = ticketNo;
                     updateLabels(next);
                     refreshNextTicket();
@@ -428,7 +453,9 @@ public class CounterStaffPanel extends JPanel {
     }
 
     private void callNextPassenger() {
-        if (isAnimating) return;
+        if (isAnimating || !requireCounter()) return;
+
+        final String user = currentUser();
 
         if (currentTicketNo != null) {
             String ticket = currentTicketNo;
@@ -438,7 +465,7 @@ public class CounterStaffPanel extends JPanel {
                 new SwingWorker<Void, Void>() {
                     @Override
                     protected Void doInBackground() throws Exception {
-                        FirebaseHelper.updateTicketStatus(ticket, "COMPLETED", counter);
+                        FirebaseHelper.updateTicketStatus(ticket, "COMPLETED", counter, user);
                         return null;
                     }
 
@@ -481,7 +508,7 @@ public class CounterStaffPanel extends JPanel {
                         return;
                     }
                     String ticketNo = next.get("ticketNo");
-                    FirebaseHelper.updateTicketStatus(ticketNo, "SERVING", counter);
+                    FirebaseHelper.updateTicketStatus(ticketNo, "SERVING", counter, user);
                     currentTicketNo = ticketNo;
                     updateLabels(next);
                     refreshNextTicket();
@@ -495,6 +522,7 @@ public class CounterStaffPanel extends JPanel {
     }
 
     private void updateCurrentStatus(String newStatus) {
+        if (!requireCounter()) return;
         if (currentTicketNo == null) {
             showModernMessage("No passenger is currently being served.", "Notice", false);
             return;
@@ -506,7 +534,7 @@ public class CounterStaffPanel extends JPanel {
         new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                FirebaseHelper.updateTicketStatus(ticket, newStatus, counter);
+                FirebaseHelper.updateTicketStatus(ticket, newStatus, counter, null);
                 return null;
             }
 
@@ -527,6 +555,7 @@ public class CounterStaffPanel extends JPanel {
     }
 
     private void transferPassenger() {
+        if (!requireCounter()) return;
         if (currentTicketNo == null) {
             showModernMessage("No passenger is currently being served.", "Notice", false);
             return;
@@ -551,7 +580,7 @@ public class CounterStaffPanel extends JPanel {
         new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                FirebaseHelper.updateTicketStatus(ticket, "WAITING", targetCounter);
+                FirebaseHelper.updateTicketStatus(ticket, "WAITING", targetCounter, "");
                 return null;
             }
 
@@ -580,7 +609,7 @@ public class CounterStaffPanel extends JPanel {
             }
         });
 
-        ButtonGroup group = new ButtonGroup();
+        counterGroup = new ButtonGroup();
         counterButtons = new JToggleButton[4];
 
         for (int i = 0; i < 4; i++) {
@@ -592,10 +621,9 @@ public class CounterStaffPanel extends JPanel {
             btn.setPreferredSize(new Dimension(44, 32));
             btn.setBorder(BorderFactory.createEmptyBorder());
             btn.setContentAreaFilled(false);
-            // btn.setBackground(null);
+            btn.setBackground(null);
             btn.setOpaque(false);
             btn.setForeground(MainFrame.NAV_BTN_BG);
-
 
             btn.addItemListener(e -> {
                 if (btn.isSelected()) {
@@ -614,12 +642,11 @@ public class CounterStaffPanel extends JPanel {
                 }
             });
 
-            group.add(btn);
+            counterGroup.add(btn);
             counterButtons[i] = btn;
             strip.add(btn);
         }
 
-        counterButtons[0].setSelected(true);
         return strip;
     }
 
@@ -766,6 +793,9 @@ public class CounterStaffPanel extends JPanel {
     }
 
     private void recallPassenger() {
+        if (!requireCounter()) return;
+        final String user = currentUser();
+
         new SwingWorker<List<Map<String, String>>, Void>() {
             @Override
             protected List<Map<String, String>> doInBackground() throws Exception {
@@ -799,10 +829,10 @@ public class CounterStaffPanel extends JPanel {
                     int counter = selectedCounter;
 
                     if (currentTicketNo != null) {
-                        FirebaseHelper.updateTicketStatus(currentTicketNo, "COMPLETED", counter);
+                        FirebaseHelper.updateTicketStatus(currentTicketNo, "COMPLETED", counter, user);
                     }
 
-                    FirebaseHelper.updateTicketStatus(ticketNo, "SERVING", counter);
+                    FirebaseHelper.updateTicketStatus(ticketNo, "SERVING", counter, user);
                     currentTicketNo = ticketNo;
 
                     Map<String, String> t = FirebaseHelper.getTicketByNumber(ticketNo);

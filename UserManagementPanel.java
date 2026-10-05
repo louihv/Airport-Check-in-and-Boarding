@@ -542,40 +542,46 @@ public class UserManagementPanel extends JPanel {
         new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                if (editingUsername != null) {
-                    boolean usernameChanged = !editingUsername.equalsIgnoreCase(u);
-                    boolean roleChanged = editingRole != null && !editingRole.equalsIgnoreCase(role);
+                String newPath = "users/" + role.toLowerCase() + "/" + u;
 
-                    if (usernameChanged || roleChanged) {
-                        FirebaseHelper.delete("users/" + editingRole.toLowerCase() + "/" + editingUsername);
-                    }
+                if (editingUsername == null) {
+                FirebaseHelper.put(newPath,
+                    buildUserJson(u, PasswordUtil.hash(p), role, counter, "Offline", true));
+                return null;
+            }
 
-                    if (p.isEmpty()) {
-                        String existing = FirebaseHelper.get("users/" + role.toLowerCase() + "/" + u);
-                        if (existing == null || existing.equals("null") || existing.isEmpty()) {
-                            existing = FirebaseHelper.get("users/" + editingRole.toLowerCase() + "/" + editingUsername);
-                        }
-                        String hashed = null;
-                        if (existing != null && !existing.equals("null")) {
-                            java.util.regex.Matcher m = java.util.regex.Pattern
-                                    .compile("\"password\"\\s*:\\s*\"([^\"]*)\"").matcher(existing);
-                            if (m.find()) hashed = m.group(1);
-                        }
-                        if (hashed != null) {
-                            String json = String.format(
-                                "{\"username\":\"%s\",\"password\":\"%s\",\"role\":\"%s\",\"counter\":\"%s\",\"status\":\"Offline\"}",
-                                u, hashed, role, counter
-                            );
-                            FirebaseHelper.put("users/" + role.toLowerCase() + "/" + u, json);
-                        } else {
-                            FirebaseHelper.saveUser(u, "changeme", role, counter);
-                        }
-                    } else {
-                        FirebaseHelper.saveUser(u, p, role, counter);
+                String oldPath = "users/" + editingRole.toLowerCase() + "/" + editingUsername;
+                boolean moved = !editingUsername.equalsIgnoreCase(u)
+                        || !editingRole.equalsIgnoreCase(role);
+
+                String existing = FirebaseHelper.get(oldPath);
+                boolean hasExisting = existing != null && !existing.isEmpty() && !existing.equals("null");
+
+                String password;
+                boolean mustChange;
+                String status = "Offline";
+
+                if (!p.isEmpty()) {
+                    password = PasswordUtil.hash(p);
+                    mustChange = true;
+                    if (hasExisting) {
+                        String s = extract(existing, "status");
+                        if (!s.isEmpty()) status = s;
                     }
+                } else if (hasExisting) {
+                     password = extract(existing, "password");
+                    mustChange = "true".equalsIgnoreCase(extract(existing, "mustChangePassword"));
+                    String s = extract(existing, "status");
+                    if (!s.isEmpty()) status = s;
                 } else {
-                    FirebaseHelper.saveUser(u, p, role, counter);
+                    password = PasswordUtil.hash("changeme"); 
+                    mustChange = true;
                 }
+
+                if (moved) {
+                    FirebaseHelper.delete(oldPath);
+                }
+                FirebaseHelper.put(newPath, buildUserJson(u, password, role, counter, status, mustChange));
                 return null;
             }
 
@@ -693,6 +699,28 @@ public class UserManagementPanel extends JPanel {
                 }
             }
         }.execute();
+    }
+
+    private static String extract(String json, String key) {
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("\"" + key + "\"\\s*:\\s*(?:\"([^\"]*)\"|([^,}\\s]+))")
+                .matcher(json);
+        if (!m.find()) return "";
+        return m.group(1) != null ? m.group(1) : m.group(2);
+    }
+
+    private static String esc(String s) {
+        return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static String buildUserJson(String username, String password, String role,
+                                        String counter, String status, boolean mustChange) {
+        return "{\"username\":\"" + esc(username) + "\","
+            + "\"password\":\"" + esc(password) + "\","
+            + "\"role\":\"" + esc(role) + "\","
+            + "\"counter\":\"" + esc(counter) + "\","
+            + "\"status\":\"" + esc(status) + "\","
+            + "\"mustChangePassword\":" + mustChange + "}";
     }
 
     private static class ModernComboBoxUI extends BasicComboBoxUI {

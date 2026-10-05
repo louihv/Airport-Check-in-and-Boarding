@@ -6,7 +6,7 @@ public class QueueManager {
     private static QueueManager instance;
     private final List<Passenger> queueList = new ArrayList<>();
     private final Map<Integer, Passenger> activeCounters = new HashMap<>();
-    private int ticketCounter = 100;          
+    private int ticketCounter = 100;
     private boolean counterLoaded = false;
     private final List<Runnable> updateListeners = new ArrayList<>();
 
@@ -93,6 +93,10 @@ public class QueueManager {
     }
 
     public Passenger callNextPassenger(int counterId) {
+        return callNextPassenger(counterId, null);
+    }
+
+    public Passenger callNextPassenger(int counterId, String servedBy) {
         for (Passenger p : queueList) {
             if ("WAITING".equals(p.getStatus())) {
                 p.setStatus("SERVING");
@@ -102,7 +106,7 @@ public class QueueManager {
 
                 new Thread(() -> {
                     try {
-                        FirebaseHelper.updateTicketStatus(p.getTicketNumber(), "SERVING", counterId);
+                        FirebaseHelper.updateTicketStatus(p.getTicketNumber(), "SERVING", counterId, servedBy);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -115,6 +119,10 @@ public class QueueManager {
     }
 
     public void completeService(int counterId) {
+        completeService(counterId, null);
+    }
+
+    public void completeService(int counterId, String servedBy) {
         Passenger p = activeCounters.get(counterId);
         if (p != null) {
             p.setStatus("COMPLETED");
@@ -123,7 +131,7 @@ public class QueueManager {
 
             new Thread(() -> {
                 try {
-                    FirebaseHelper.updateTicketStatus(p.getTicketNumber(), "COMPLETED", counterId);
+                    FirebaseHelper.updateTicketStatus(p.getTicketNumber(), "COMPLETED", counterId, servedBy);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -140,7 +148,7 @@ public class QueueManager {
 
             new Thread(() -> {
                 try {
-                    FirebaseHelper.updateTicketStatus(p.getTicketNumber(), "SKIPPED", counterId);
+                    FirebaseHelper.updateTicketStatus(p.getTicketNumber(), "SKIPPED", counterId, null);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

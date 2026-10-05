@@ -13,6 +13,7 @@ public class AccountPanel extends JPanel {
     private JButton btnChangePassword, btnRefresh;
     private JPanel forceChangeOverlay;
     private boolean forcePasswordChange = false;
+    private boolean initialCheckPending = false;
 
     public AccountPanel(MainFrame mainFrame) {
         this.frame = mainFrame;
@@ -49,6 +50,12 @@ public class AccountPanel extends JPanel {
     public void setUser(String username, String role) {
         this.currentUsername = username;
         this.currentRole = role;
+        this.initialCheckPending = true;
+        this.forcePasswordChange = false;
+        txtCurrentPass.setText("");
+        txtNewPass.setText("");
+        txtConfirmPass.setText("");
+        forceChangeOverlay.setVisible(false);
         loadAccountInfo();
     }
 
@@ -148,6 +155,8 @@ public class AccountPanel extends JPanel {
             }
         };
         overlay.setOpaque(false);
+        overlay.addMouseListener(new java.awt.event.MouseAdapter() {});
+        overlay.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {});
 
         JPanel dialog = createRoundedCard();
         dialog.setLayout(new BorderLayout(0, 16));
@@ -170,7 +179,10 @@ public class AccountPanel extends JPanel {
         msg.setHorizontalAlignment(SwingConstants.CENTER);
 
         JButton go = createFilledButton("Set New Password Now");
-        go.addActionListener(e -> txtCurrentPass.requestFocusInWindow());
+        go.addActionListener(e -> {
+            forceChangeOverlay.setVisible(false);
+            txtCurrentPass.requestFocusInWindow();
+        });
 
         JPanel btnWrap = new JPanel(new FlowLayout(FlowLayout.CENTER));
         btnWrap.setOpaque(false);
@@ -221,9 +233,20 @@ public class AccountPanel extends JPanel {
                     String password = extract(json, "password");
 
                     forcePasswordChange = "true".equalsIgnoreCase(mustChange)
-                            || "changeme".equals(password);
+                     || "changeme".equals(password);
 
                     forceChangeOverlay.setVisible(forcePasswordChange);
+
+                    if (frame != null) {
+                        if (forcePasswordChange) {
+                            frame.setNavigationEnabled(false);
+                        } else if (initialCheckPending) {
+                            frame.setNavigationEnabled(true);
+                            frame.showPanel("Dashboard");
+                        }
+                    }
+                    initialCheckPending = false;
+
                     revalidate();
                     repaint();
 
@@ -237,8 +260,10 @@ public class AccountPanel extends JPanel {
 
     private String extract(String json, String key) {
         java.util.regex.Matcher m = java.util.regex.Pattern
-                .compile("\"" + key + "\"\\s*:\\s*\"([^\"]*)\"").matcher(json);
-        return m.find() ? m.group(1) : "";
+                .compile("\"" + key + "\"\\s*:\\s*(?:\"([^\"]*)\"|([^,}\\s]+))")
+                .matcher(json);
+        if (!m.find()) return "";
+        return m.group(1) != null ? m.group(1) : m.group(2);
     }
 
     private void changePassword() {
@@ -252,6 +277,14 @@ public class AccountPanel extends JPanel {
         }
         if (newPass.length() < 6) {
             showWarn("New password must be at least 6 characters.");
+            return;
+        }
+        if (current.isEmpty()) {
+            showWarn("Please enter your current password.");
+            return;
+        }
+        if (newPass.equals(current) || newPass.equals("changeme")) {
+            showWarn("Please choose a different password.");
             return;
         }
         if (!newPass.equals(confirm)) {
@@ -268,15 +301,9 @@ public class AccountPanel extends JPanel {
                 if (json == null || json.equals("null")) return false;
 
                 String storedHash = extract(json, "password");
-                boolean ok = storedHash.equals(current)
-                        || storedHash.equals(hash(current));
-
-                if (!ok && !forcePasswordChange) {
-                    if (!"changeme".equals(storedHash) && !storedHash.equals(hash("changeme"))) {
-                        return false;
-                    }
+                if (!PasswordUtil.verify(current, storedHash)) {
+                    return false;
                 }
-
                 String counter = extract(json, "counter");
                 String status = extract(json, "status");
 
@@ -309,7 +336,9 @@ public class AccountPanel extends JPanel {
                         repaint();
                         if (frame != null) {
                             frame.setNavigationEnabled(true);
+                            frame.showPanel("Dashboard");
                         }
+                        showInfo("Password updated successfully.");
                     } else {
                         showError("Current password is incorrect.");
                     }
@@ -520,7 +549,7 @@ public class AccountPanel extends JPanel {
     }
 
     private String hash(String plain) {
-        return plain;
+        return PasswordUtil.hash(plain);
     }
 
     private static class RoundedOutlineBorder extends AbstractBorder {

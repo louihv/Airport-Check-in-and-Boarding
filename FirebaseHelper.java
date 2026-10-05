@@ -1,164 +1,145 @@
-    import java.io.*;
-    import java.net.*;
-    import java.nio.charset.StandardCharsets;
-    import java.security.MessageDigest;
-    import java.util.*;
-    import java.util.regex.*;
+import java.io.*;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.*;
+import java.util.regex.*;
 
-    public class FirebaseHelper {
+public class FirebaseHelper {
 
-        private static final String DB_URL = "https://airport-queuing-system-default-rtdb.firebaseio.com/";
+    private static final String DB_URL = "https://airport-queuing-system-default-rtdb.firebaseio.com/";
 
-        public static String get(String path) throws Exception {
-            URL url = new URL(DB_URL + path + ".json");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(10000);
+    public static String get(String path) throws Exception {
+        URL url = new URL(DB_URL + path + ".json");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(10000);
 
-            int responseCode = conn.getResponseCode();
-            InputStream stream = (responseCode >= 200 && responseCode < 300)
-                    ? conn.getInputStream()
-                    : conn.getErrorStream();
+        int responseCode = conn.getResponseCode();
+        InputStream stream = (responseCode >= 200 && responseCode < 300)
+                ? conn.getInputStream()
+                : conn.getErrorStream();
 
-            if (stream == null) {
-                throw new IOException("HTTP " + responseCode + " with empty body");
-            }
+        if (stream == null) {
+            throw new IOException("HTTP " + responseCode + " with empty body");
+        }
 
+        BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) sb.append(line);
+        reader.close();
+        conn.disconnect();
+
+        String body = sb.toString();
+
+        if (responseCode < 200 || responseCode >= 300) {
+            throw new IOException("HTTP " + responseCode + " → " + body);
+        }
+
+        return body;
+    }
+
+    public static void put(String path, String json) throws Exception {
+        URL url = new URL(DB_URL + path + ".json");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("PUT");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(10000);
+
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(json.getBytes(StandardCharsets.UTF_8));
+        }
+
+        int responseCode = conn.getResponseCode();
+        InputStream stream = (responseCode >= 200 && responseCode < 300)
+                ? conn.getInputStream()
+                : conn.getErrorStream();
+
+        String body = "";
+        if (stream != null) {
             BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) sb.append(line);
             reader.close();
-            conn.disconnect();
-
-            String body = sb.toString();
-
-            if (responseCode < 200 || responseCode >= 300) {
-                throw new IOException("HTTP " + responseCode + " → " + body);
-            }
-
-            return body;
+            body = sb.toString();
         }
+        conn.disconnect();
 
-        public static void put(String path, String json) throws Exception {
-            URL url = new URL(DB_URL + path + ".json");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("PUT");
-            conn.setDoOutput(true);
-            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(10000);
-
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(json.getBytes(StandardCharsets.UTF_8));
-            }
-
-            int responseCode = conn.getResponseCode();
-            InputStream stream = (responseCode >= 200 && responseCode < 300)
-                    ? conn.getInputStream()
-                    : conn.getErrorStream();
-
-            String body = "";
-            if (stream != null) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
-                reader.close();
-                body = sb.toString();
-            }
-            conn.disconnect();
-
-            if (responseCode < 200 || responseCode >= 300) {
-                throw new IOException("PUT failed HTTP " + responseCode + " → " + body);
-            }
+        if (responseCode < 200 || responseCode >= 300) {
+            throw new IOException("PUT failed HTTP " + responseCode + " → " + body);
         }
+    }
 
-        public static void patch(String path, String json) throws Exception {
-            URL url = new URL(DB_URL + path + ".json");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestProperty("X-HTTP-Method-Override", "PATCH");
-            conn.setRequestMethod("POST");
-            conn.setDoOutput(true);
-            conn.setRequestProperty("Content-Type", "application/json");
+    public static void patch(String path, String json) throws Exception {
+        URL url = new URL(DB_URL + path + ".json");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestProperty("X-HTTP-Method-Override", "PATCH");
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json");
 
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(json.getBytes(StandardCharsets.UTF_8));
-            }
-            conn.getResponseCode();
-            conn.disconnect();
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(json.getBytes(StandardCharsets.UTF_8));
         }
+        conn.getResponseCode();
+        conn.disconnect();
+    }
 
-        public static void delete(String path) throws Exception {
-            URL url = new URL(DB_URL + path + ".json");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("DELETE");
-            conn.getResponseCode();
-            conn.disconnect();
-        }
+    public static void delete(String path) throws Exception {
+        URL url = new URL(DB_URL + path + ".json");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("DELETE");
+        conn.getResponseCode();
+        conn.disconnect();
+    }
 
-        public static String hash(String password) {
-            try {
-                MessageDigest md = MessageDigest.getInstance("SHA-256");
-                byte[] hash = md.digest(password.getBytes(StandardCharsets.UTF_8));
-                StringBuilder sb = new StringBuilder();
-                for (byte b : hash) sb.append(String.format("%02x", b));
-                return sb.toString();
-            } catch (Exception e) {
-                return password;
-            }
-        }
+    public static String hash(String password) {
+       return PasswordUtil.hash(password);
+    }
 
-        public static void saveUser(String username, String password, String role, String counter) throws Exception {
-        String hashed = hash(password);
+    public static void saveUser(String username, String password, String role, String counter) throws Exception {
         String json = String.format(
             "{\"username\":\"%s\",\"password\":\"%s\",\"role\":\"%s\",\"counter\":\"%s\"," +
             "\"status\":\"Offline\",\"mustChangePassword\":true}",
-            username,
-            hashed,
-            role,
-            counter == null ? "" : counter
+            jsonEscape(username),
+            PasswordUtil.hash(password),
+            jsonEscape(role),
+            counter == null ? "" : jsonEscape(counter)
         );
-        String path = "users/" + role.toLowerCase() + "/" + username;
-        put(path, json);
-        }
+        put("users/" + role.toLowerCase() + "/" + username, json);
+    }
 
-        public static String[] login(String username, String password) throws Exception {
-            String hashed = hash(password);
-            String[] roles = {"staff", "admin"};
+    public static String[] login(String username, String password) throws Exception {
+        String[] roles = {"staff", "admin"};
 
-            for (String r : roles) {
-                String data = get("users/" + r + "/" + username);
+        for (String r : roles) {
+            String base = "users/" + r + "/" + username;
+            String data = get(base);
+            if (data == null || data.equals("null") || data.isEmpty()) continue;
 
-                if (data != null && !data.equals("null") && !data.isEmpty()) {
-                    if (data.contains("\"password\":\"" + hashed + "\"") ||
-                        data.contains("\"password\": \"" + hashed + "\"")) {
+            String stored = extractJsonString(data, "password");
+            if (stored == null || !PasswordUtil.verify(password, stored)) continue;
 
-                        String counter = "";
-                        int idx = data.indexOf("\"counter\"");
-                        if (idx != -1) {
-                            int start = data.indexOf(':', idx) + 1;
-                            int end = data.indexOf(',', start);
-                            if (end == -1) end = data.indexOf('}', start);
-                            if (end > start) {
-                                counter = data.substring(start, end)
-                                            .replace("\"", "")
-                                            .trim();
-                            }
-                        }
-
-                        setOnline(username, r, counter);
-
-                        return new String[]{ r.toUpperCase(), counter };
-                    }
-                }
+            if (!PasswordUtil.isHashed(stored)) {
+                try {
+                    put(base + "/password", "\"" + PasswordUtil.hash(password) + "\"");
+                } catch (Exception ignored) {}
             }
-            return null;
+
+            String counter = nullToEmpty(extractJsonString(data, "counter"));
+            setOnline(username, r, counter);
+            return new String[]{ r.toUpperCase(), counter };
         }
+        return null;
+    }
 
     public static void setOnline(String username, String role, String counter) throws Exception {
-        String rolePath = role.toLowerCase();          
+        String rolePath = role.toLowerCase();
         String base = "users/" + rolePath + "/" + username;
 
         put(base + "/status", "\"Online\"");
@@ -167,209 +148,224 @@
         if (counter != null && !counter.trim().isEmpty()) {
             put(base + "/counter", "\"" + counter.trim() + "\"");
         }
-        }
+    }
 
-        public static void setOffline(String username) throws Exception {
-            String[] roles = {"staff", "admin"};
-            for (String r : roles) {
-                String data = get("users/" + r + "/" + username);
-                if (data != null && !data.equals("null") && !data.isEmpty()) {
-                    put("users/" + r + "/" + username + "/status", "\"Offline\"");
+    public static void setOffline(String username) throws Exception {
+        String[] roles = {"staff", "admin"};
+        for (String r : roles) {
+            String data = get("users/" + r + "/" + username);
+            if (data != null && !data.equals("null") && !data.isEmpty()) {
+                put("users/" + r + "/" + username + "/status", "\"Offline\"");
+                put("users/" + r + "/" + username + "/counter", "\"\"");
+                return;
+            }
+        }
+    }
+
+    public static void saveBaggage(String bookingRef, String tagNo, double weight, String status) throws Exception {
+        String json = String.format(
+            "{\"bookingRef\":\"%s\",\"tagNo\":\"%s\",\"weight\":%.2f,\"status\":\"%s\",\"timestamp\":\"%s\"}",
+            bookingRef,
+            tagNo,
+            weight,
+            status,
+            java.time.LocalDateTime.now().toString()
+        );
+        put("baggage/" + tagNo, json);
+
+        String baggageInfo = tagNo + " (" + String.format("%.2f", weight) + " kg)";
+
+        String pendingJson = get("pendingTickets");
+        if (pendingJson != null && !pendingJson.equals("null") && !pendingJson.isEmpty()) {
+            Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(pendingJson);
+            while (keyMatcher.find()) {
+                String ticketKey = keyMatcher.group(1);
+                int start = keyMatcher.end() - 1;
+                int end = findMatchingBrace(pendingJson, start);
+                if (end == -1) continue;
+
+                String obj = pendingJson.substring(start, end + 1);
+                String ref = extractJsonString(obj, "bookingRef");
+                if (bookingRef.equalsIgnoreCase(ref)) {
+                    put("pendingTickets/" + ticketKey + "/baggage", "\"" + baggageInfo + "\"");
                     return;
                 }
             }
         }
 
-        public static void saveBaggage(String bookingRef, String tagNo, double weight, String status) throws Exception {
-            String json = String.format(
-                "{\"bookingRef\":\"%s\",\"tagNo\":\"%s\",\"weight\":%.2f,\"status\":\"%s\",\"timestamp\":\"%s\"}",
-                bookingRef,
-                tagNo,
-                weight,
-                status,
-                java.time.LocalDateTime.now().toString()
-            );
-            put("baggage/" + tagNo, json);
-
-            String baggageInfo = tagNo + " (" + String.format("%.2f", weight) + " kg)";
-
-            String pendingJson = get("pendingTickets");
-            if (pendingJson != null && !pendingJson.equals("null") && !pendingJson.isEmpty()) {
-                Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(pendingJson);
-                while (keyMatcher.find()) {
-                    String ticketKey = keyMatcher.group(1);
-                    int start = keyMatcher.end() - 1;
-                    int end = findMatchingBrace(pendingJson, start);
-                    if (end == -1) continue;
-
-                    String obj = pendingJson.substring(start, end + 1);
-                    String ref = extractJsonString(obj, "bookingRef");
-                    if (bookingRef.equalsIgnoreCase(ref)) {
-                        put("pendingTickets/" + ticketKey + "/baggage", "\"" + baggageInfo + "\"");
-                        return;
-                    }
-                }
-            }
-
-            String ticketsJson = get("tickets");
-            if (ticketsJson != null && !ticketsJson.equals("null") && !ticketsJson.isEmpty()) {
-                Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(ticketsJson);
-                while (keyMatcher.find()) {
-                    String ticketKey = keyMatcher.group(1);
-                    int start = keyMatcher.end() - 1;
-                    int end = findMatchingBrace(ticketsJson, start);
-                    if (end == -1) continue;
-
-                    String obj = ticketsJson.substring(start, end + 1);
-                    String ref = extractJsonString(obj, "bookingRef");
-                    if (bookingRef.equalsIgnoreCase(ref)) {
-                        put("tickets/" + ticketKey + "/baggage", "\"" + baggageInfo + "\"");
-                        break;
-                    }
-                }
-            }
-        }
-
-        public static void saveTicket(Passenger p) throws Exception {
-            String json = String.format(
-                "{\"ticketNo\":\"%s\",\"bookingRef\":\"%s\",\"name\":\"%s\",\"flightNo\":\"%s\"," +
-                "\"baggage\":\"%s\",\"status\":\"%s\",\"counter\":%d,\"checkInTime\":\"%s\",\"cabin\":\"%s\"}",
-                p.getTicketNumber(),
-                p.getBookingRef(),
-                p.getName(),
-                p.getFlightNumber(),
-                p.getBaggageInfo(),
-                p.getStatus(),
-                p.getAssignedCounter(),
-                p.getCheckInTime().toString(),
-                p.getCabin() == null ? "Economy" : p.getCabin()
-            );
-            put("pendingTickets/" + p.getTicketNumber(), json);
-        }
-
-        public static void updateTicketStatus(String ticketNo, String status, int counter) throws Exception {
-            put("pendingTickets/" + ticketNo + "/status", "\"" + status + "\"");
-            put("pendingTickets/" + ticketNo + "/counter", String.valueOf(counter));
-
-            if ("COMPLETED".equalsIgnoreCase(status) || "SERVED".equalsIgnoreCase(status)) {
-                moveTicketToCompleted(ticketNo);
-            }
-        }
-
-        public static void moveTicketToCompleted(String ticketNo) throws Exception {
-            if (ticketNo == null || ticketNo.trim().isEmpty()) return;
-
-            String data = get("pendingTickets/" + ticketNo);
-            if (data == null || data.equals("null") || data.trim().isEmpty()) return;
-
-            put("tickets/" + ticketNo, data);
-            delete("pendingTickets/" + ticketNo);
-        }
-
-        public static List<Map<String, String>> getAllPendingTickets() throws Exception {
-            List<Map<String, String>> tickets = new ArrayList<>();
-            String data = get("pendingTickets");
-
-            if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
-                return tickets;
-            }
-
-            Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
+        String ticketsJson = get("tickets");
+        if (ticketsJson != null && !ticketsJson.equals("null") && !ticketsJson.isEmpty()) {
+            Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(ticketsJson);
             while (keyMatcher.find()) {
-                String key = keyMatcher.group(1);
+                String ticketKey = keyMatcher.group(1);
                 int start = keyMatcher.end() - 1;
-                int end = findMatchingBrace(data, start);
+                int end = findMatchingBrace(ticketsJson, start);
                 if (end == -1) continue;
 
-                String obj = data.substring(start, end + 1);
-
-                Map<String, String> t = new HashMap<>();
-                t.put("ticketNo",      extractJsonString(obj, "ticketNo") != null ? extractJsonString(obj, "ticketNo") : key);
-                t.put("bookingRef",    nullToEmpty(extractJsonString(obj, "bookingRef")));
-                t.put("name",          nullToEmpty(extractJsonString(obj, "name")));
-                t.put("flightNo",      nullToEmpty(extractJsonString(obj, "flightNo")));
-                t.put("baggage",       nullToEmpty(extractJsonString(obj, "baggage")));
-                t.put("status",        nullToEmpty(extractJsonString(obj, "status")));
-                t.put("checkInTime",   nullToEmpty(extractJsonString(obj, "checkInTime")));
-                t.put("cabin",         nullToEmpty(extractJsonString(obj, "cabin")));
-
-                String counterStr = extractJsonNumber(obj, "counter");
-                t.put("counter", counterStr != null ? counterStr : "0");
-
-                tickets.add(t);
+                String obj = ticketsJson.substring(start, end + 1);
+                String ref = extractJsonString(obj, "bookingRef");
+                if (bookingRef.equalsIgnoreCase(ref)) {
+                    put("tickets/" + ticketKey + "/baggage", "\"" + baggageInfo + "\"");
+                    break;
+                }
             }
+        }
+    }
 
-            tickets.sort((a, b) -> {
-                String t1 = a.get("checkInTime");
-                String t2 = b.get("checkInTime");
-                if (t1 == null) return 1;
-                if (t2 == null) return -1;
-                return t1.compareTo(t2);
-            });
+    public static void saveTicket(Passenger p) throws Exception {
+        String json = String.format(
+            "{\"ticketNo\":\"%s\",\"bookingRef\":\"%s\",\"name\":\"%s\",\"flightNo\":\"%s\"," +
+            "\"baggage\":\"%s\",\"status\":\"%s\",\"counter\":%d,\"checkInTime\":\"%s\",\"cabin\":\"%s\"}",
+            p.getTicketNumber(),
+            p.getBookingRef(),
+            p.getName(),
+            p.getFlightNumber(),
+            p.getBaggageInfo(),
+            p.getStatus(),
+            p.getAssignedCounter(),
+            p.getCheckInTime().toString(),
+            p.getCabin() == null ? "Economy" : p.getCabin()
+        );
+        put("pendingTickets/" + p.getTicketNumber(), json);
+    }
 
+    public static void updateTicketStatus(String ticketNo, String status, int counter) throws Exception {
+        updateTicketStatus(ticketNo, status, counter, null);
+    }
+
+    public static void updateTicketStatus(String ticketNo, String status, int counter, String servedBy) throws Exception {
+        put("pendingTickets/" + ticketNo + "/status", "\"" + status + "\"");
+        put("pendingTickets/" + ticketNo + "/counter", String.valueOf(counter));
+
+        if (servedBy != null) {
+            if (servedBy.trim().isEmpty()) {
+                delete("pendingTickets/" + ticketNo + "/servedBy");
+            } else {
+                put("pendingTickets/" + ticketNo + "/servedBy", "\"" + jsonEscape(servedBy.trim()) + "\"");
+            }
+        }
+
+        if ("COMPLETED".equalsIgnoreCase(status) || "SERVED".equalsIgnoreCase(status)) {
+            moveTicketToCompleted(ticketNo);
+        }
+    }
+
+    public static void moveTicketToCompleted(String ticketNo) throws Exception {
+        if (ticketNo == null || ticketNo.trim().isEmpty()) return;
+
+        String data = get("pendingTickets/" + ticketNo);
+        if (data == null || data.equals("null") || data.trim().isEmpty()) return;
+
+        put("tickets/" + ticketNo, data);
+        delete("pendingTickets/" + ticketNo);
+    }
+
+    public static List<Map<String, String>> getAllPendingTickets() throws Exception {
+        List<Map<String, String>> tickets = new ArrayList<>();
+        String data = get("pendingTickets");
+
+        if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
             return tickets;
         }
 
-        public static List<Map<String, String>> getWaitingTickets() throws Exception {
-            List<Map<String, String>> all = getAllPendingTickets();
-            List<Map<String, String>> waiting = new ArrayList<>();
-            for (Map<String, String> t : all) {
-                String status = t.get("status");
-                if (status == null || status.isEmpty()
-                        || "WAITING".equalsIgnoreCase(status)
-                        || "PENDING".equalsIgnoreCase(status)
-                        || "CHECKED_IN".equalsIgnoreCase(status)) {
-                    waiting.add(t);
-                }
-            }
-            return waiting;
+        Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
+        while (keyMatcher.find()) {
+            String key = keyMatcher.group(1);
+            int start = keyMatcher.end() - 1;
+            int end = findMatchingBrace(data, start);
+            if (end == -1) continue;
+
+            String obj = data.substring(start, end + 1);
+
+            Map<String, String> t = new HashMap<>();
+            t.put("ticketNo",      extractJsonString(obj, "ticketNo") != null ? extractJsonString(obj, "ticketNo") : key);
+            t.put("bookingRef",    nullToEmpty(extractJsonString(obj, "bookingRef")));
+            t.put("name",          nullToEmpty(extractJsonString(obj, "name")));
+            t.put("flightNo",      nullToEmpty(extractJsonString(obj, "flightNo")));
+            t.put("baggage",       nullToEmpty(extractJsonString(obj, "baggage")));
+            t.put("status",        nullToEmpty(extractJsonString(obj, "status")));
+            t.put("checkInTime",   nullToEmpty(extractJsonString(obj, "checkInTime")));
+            t.put("cabin",         nullToEmpty(extractJsonString(obj, "cabin")));
+            t.put("servedBy",      nullToEmpty(extractJsonString(obj, "servedBy")));
+
+            String counterStr = extractJsonNumber(obj, "counter");
+            t.put("counter", counterStr != null ? counterStr : "0");
+
+            tickets.add(t);
         }
 
-        public static List<Map<String, String>> getAllCompletedTickets() throws Exception {
-            List<Map<String, String>> tickets = new ArrayList<>();
-            String data = get("tickets");
+        tickets.sort((a, b) -> {
+            String t1 = a.get("checkInTime");
+            String t2 = b.get("checkInTime");
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t1.compareTo(t2);
+        });
 
-            if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
-                return tickets;
+        return tickets;
+    }
+
+    public static List<Map<String, String>> getWaitingTickets() throws Exception {
+        List<Map<String, String>> all = getAllPendingTickets();
+        List<Map<String, String>> waiting = new ArrayList<>();
+        for (Map<String, String> t : all) {
+            String status = t.get("status");
+            if (status == null || status.isEmpty()
+                    || "WAITING".equalsIgnoreCase(status)
+                    || "PENDING".equalsIgnoreCase(status)
+                    || "CHECKED_IN".equalsIgnoreCase(status)) {
+                waiting.add(t);
             }
+        }
+        return waiting;
+    }
 
-            Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
-            while (keyMatcher.find()) {
-                String key = keyMatcher.group(1);
-                int start = keyMatcher.end() - 1;
-                int end = findMatchingBrace(data, start);
-                if (end == -1) continue;
+    public static List<Map<String, String>> getAllCompletedTickets() throws Exception {
+        List<Map<String, String>> tickets = new ArrayList<>();
+        String data = get("tickets");
 
-                String obj = data.substring(start, end + 1);
-
-                Map<String, String> t = new HashMap<>();
-                t.put("ticketNo",    extractJsonString(obj, "ticketNo") != null ? extractJsonString(obj, "ticketNo") : key);
-                t.put("bookingRef",  nullToEmpty(extractJsonString(obj, "bookingRef")));
-                t.put("name",        nullToEmpty(extractJsonString(obj, "name")));
-                t.put("flightNo",    nullToEmpty(extractJsonString(obj, "flightNo")));
-                t.put("baggage",     nullToEmpty(extractJsonString(obj, "baggage")));
-                t.put("status",      nullToEmpty(extractJsonString(obj, "status")));
-                t.put("checkInTime", nullToEmpty(extractJsonString(obj, "checkInTime")));
-                t.put("cabin",       nullToEmpty(extractJsonString(obj, "cabin")));
-
-                String counterStr = extractJsonNumber(obj, "counter");
-                t.put("counter", counterStr != null ? counterStr : "0");
-
-                tickets.add(t);
-            }
-
-            tickets.sort((a, b) -> {
-                String t1 = a.get("checkInTime");
-                String t2 = b.get("checkInTime");
-                if (t1 == null) return 1;
-                if (t2 == null) return -1;
-                return t2.compareTo(t1);
-            });
-
+        if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
             return tickets;
         }
 
-        public static List<java.util.Map<String, String>> getAllFlights() throws Exception {
+        Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
+        while (keyMatcher.find()) {
+            String key = keyMatcher.group(1);
+            int start = keyMatcher.end() - 1;
+            int end = findMatchingBrace(data, start);
+            if (end == -1) continue;
+
+            String obj = data.substring(start, end + 1);
+
+            Map<String, String> t = new HashMap<>();
+            t.put("ticketNo",    extractJsonString(obj, "ticketNo") != null ? extractJsonString(obj, "ticketNo") : key);
+            t.put("bookingRef",  nullToEmpty(extractJsonString(obj, "bookingRef")));
+            t.put("name",        nullToEmpty(extractJsonString(obj, "name")));
+            t.put("flightNo",    nullToEmpty(extractJsonString(obj, "flightNo")));
+            t.put("baggage",     nullToEmpty(extractJsonString(obj, "baggage")));
+            t.put("status",      nullToEmpty(extractJsonString(obj, "status")));
+            t.put("checkInTime", nullToEmpty(extractJsonString(obj, "checkInTime")));
+            t.put("cabin",       nullToEmpty(extractJsonString(obj, "cabin")));
+            t.put("servedBy",    nullToEmpty(extractJsonString(obj, "servedBy")));
+
+            String counterStr = extractJsonNumber(obj, "counter");
+            t.put("counter", counterStr != null ? counterStr : "0");
+
+            tickets.add(t);
+        }
+
+        tickets.sort((a, b) -> {
+            String t1 = a.get("checkInTime");
+            String t2 = b.get("checkInTime");
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.compareTo(t1);
+        });
+
+        return tickets;
+    }
+
+    public static List<java.util.Map<String, String>> getAllFlights() throws Exception {
         List<java.util.Map<String, String>> flights = new ArrayList<>();
         String data = get("flights");
 
@@ -398,235 +394,240 @@
         }
 
         return flights;
-        }
+    }
 
-        public static List<Object[]> getAllUsers() throws Exception {
-            List<Object[]> result = new ArrayList<>();
+    public static List<Object[]> getAllUsers() throws Exception {
+        List<Object[]> result = new ArrayList<>();
 
-            String[] roles = {"admin", "staff"};
-            for (String rolePath : roles) {
-                String data = get("users/" + rolePath);
-                if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
-                    continue;
-                }
-
-                Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
-                while (keyMatcher.find()) {
-                    String usernameKey = keyMatcher.group(1);
-                    int start = keyMatcher.end() - 1;
-                    int end = findMatchingBrace(data, start);
-                    if (end == -1) continue;
-
-                    String obj = data.substring(start, end + 1);
-
-                    String username = extractJsonString(obj, "username");
-                    if (username == null || username.isEmpty()) {
-                        username = usernameKey;
-                    }
-
-                    String role = extractJsonString(obj, "role");
-                    if (role == null || role.isEmpty()) {
-                        role = rolePath.toUpperCase();
-                    }
-
-                    String counter = extractJsonString(obj, "counter");
-                    if (counter == null || counter.trim().isEmpty()) {
-                        counter = "-";
-                    }
-
-                    String status = extractJsonString(obj, "status");
-                    if (status == null || status.trim().isEmpty()) {
-                        status = "Offline";
-                    }
-
-                    result.add(new Object[]{username, role, counter, status});
-                }
-            }
-
-            return result;
-        }
-
-        public static java.util.Map<String, String> getPassenger(String bookingRef) throws Exception {
-            if (bookingRef == null || bookingRef.trim().isEmpty()) {
-                return null;
-            }
-
-            String data = get("passengers/" + bookingRef.trim());
-
+        String[] roles = {"admin", "staff"};
+        for (String rolePath : roles) {
+            String data = get("users/" + rolePath);
             if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
-                return null;
+                continue;
             }
 
-            java.util.Map<String, String> passenger = new java.util.HashMap<>();
-            passenger.put("passengerName", nullToEmpty(extractJsonString(data, "passengerName")));
-            passenger.put("flightId",      nullToEmpty(extractJsonString(data, "flightId")));
-            passenger.put("airline",       nullToEmpty(extractJsonString(data, "airline")));
-            passenger.put("departureAirport", nullToEmpty(extractJsonString(data, "departureAirport")));
-            passenger.put("arrivalAirport",   nullToEmpty(extractJsonString(data, "arrivalAirport")));
-            passenger.put("departureTime",    nullToEmpty(extractJsonString(data, "departureTime")));
-            passenger.put("flightStatus",     nullToEmpty(extractJsonString(data, "flightStatus")));
+            Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
+            while (keyMatcher.find()) {
+                String usernameKey = keyMatcher.group(1);
+                int start = keyMatcher.end() - 1;
+                int end = findMatchingBrace(data, start);
+                if (end == -1) continue;
 
-            String duration = extractJsonNumber(data, "flightDurationMinutes");
-            passenger.put("flightDurationMinutes", duration != null ? duration : "");
+                String obj = data.substring(start, end + 1);
 
-            String distance = extractJsonNumber(data, "distanceMiles");
-            passenger.put("distanceMiles", distance != null ? distance : "");
-
-            String price = extractJsonNumber(data, "priceUsd");
-            if (price == null) {
-                Pattern p = Pattern.compile("\"priceUsd\"\\s*:\\s*([0-9]+\\.?[0-9]*)");
-                Matcher m = p.matcher(data);
-                if (m.find()) price = m.group(1);
-            }
-            passenger.put("priceUsd", price != null ? price : "");
-
-            return passenger;
-        }
-
-        private static int findMatchingBrace(String s, int openPos) {
-            int depth = 0;
-            for (int i = openPos; i < s.length(); i++) {
-                char c = s.charAt(i);
-                if (c == '{') depth++;
-                else if (c == '}') {
-                    depth--;
-                    if (depth == 0) return i;
+                String username = extractJsonString(obj, "username");
+                if (username == null || username.isEmpty()) {
+                    username = usernameKey;
                 }
+
+                String role = extractJsonString(obj, "role");
+                if (role == null || role.isEmpty()) {
+                    role = rolePath.toUpperCase();
+                }
+
+                String counter = extractJsonString(obj, "counter");
+                if (counter == null || counter.trim().isEmpty()) {
+                    counter = "-";
+                }
+
+                String status = extractJsonString(obj, "status");
+                if (status == null || status.trim().isEmpty()) {
+                    status = "Offline";
+                }
+
+                result.add(new Object[]{username, role, counter, status});
             }
-            return -1;
         }
 
-        private static String extractJsonString(String json, String key) {
-            Pattern p = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*\"([^\"]*)\"");
-            Matcher m = p.matcher(json);
-            if (m.find()) {
-                return m.group(1);
-            }
+        return result;
+    }
+
+    public static java.util.Map<String, String> getPassenger(String bookingRef) throws Exception {
+        if (bookingRef == null || bookingRef.trim().isEmpty()) {
             return null;
         }
 
-        public static List<java.util.Map<String, String>> getAllPassengers() throws Exception {
-            List<java.util.Map<String, String>> passengers = new ArrayList<>();
-            String data = get("passengers");
+        String data = get("passengers/" + bookingRef.trim());
 
-            if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
-                return passengers;
+        if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
+            return null;
+        }
+
+        java.util.Map<String, String> passenger = new java.util.HashMap<>();
+        passenger.put("passengerName", nullToEmpty(extractJsonString(data, "passengerName")));
+        passenger.put("flightId",      nullToEmpty(extractJsonString(data, "flightId")));
+        passenger.put("airline",       nullToEmpty(extractJsonString(data, "airline")));
+        passenger.put("departureAirport", nullToEmpty(extractJsonString(data, "departureAirport")));
+        passenger.put("arrivalAirport",   nullToEmpty(extractJsonString(data, "arrivalAirport")));
+        passenger.put("departureTime",    nullToEmpty(extractJsonString(data, "departureTime")));
+        passenger.put("flightStatus",     nullToEmpty(extractJsonString(data, "flightStatus")));
+
+        String duration = extractJsonNumber(data, "flightDurationMinutes");
+        passenger.put("flightDurationMinutes", duration != null ? duration : "");
+
+        String distance = extractJsonNumber(data, "distanceMiles");
+        passenger.put("distanceMiles", distance != null ? distance : "");
+
+        String price = extractJsonNumber(data, "priceUsd");
+        if (price == null) {
+            Pattern p = Pattern.compile("\"priceUsd\"\\s*:\\s*([0-9]+\\.?[0-9]*)");
+            Matcher m = p.matcher(data);
+            if (m.find()) price = m.group(1);
+        }
+        passenger.put("priceUsd", price != null ? price : "");
+
+        return passenger;
+    }
+
+    private static int findMatchingBrace(String s, int openPos) {
+        int depth = 0;
+        for (int i = openPos; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '{') depth++;
+            else if (c == '}') {
+                depth--;
+                if (depth == 0) return i;
             }
+        }
+        return -1;
+    }
 
-            Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
-            while (keyMatcher.find()) {
-                String key = keyMatcher.group(1);
-                int start = keyMatcher.end() - 1;
-                int end = findMatchingBrace(data, start);
-                if (end == -1) continue;
+    private static String extractJsonString(String json, String key) {
+        Pattern p = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*\"([^\"]*)\"");
+        Matcher m = p.matcher(json);
+        if (m.find()) {
+            return m.group(1);
+        }
+        return null;
+    }
 
-                String obj = data.substring(start, end + 1);
+    private static String jsonEscape(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
 
-                java.util.Map<String, String> p = new java.util.HashMap<>();
-                p.put("id", key); 
-                if (p.get("bookingRef") == null || p.get("bookingRef").isEmpty()) {
-                    p.put("bookingRef", key);
-                }
-                p.put("passengerName",          nullToEmpty(extractJsonString(obj, "passengerName")));
-                p.put("flightId",               nullToEmpty(extractJsonString(obj, "flightId")));
-                p.put("distanceMiles",          nullToEmpty(extractJsonNumber(obj, "distanceMiles")));
-                p.put("flightDurationMinutes",  nullToEmpty(extractJsonNumber(obj, "flightDurationMinutes")));
-                p.put("priceUsd",               nullToEmpty(extractJsonNumber(obj, "priceUsd")));
-                p.put("flightStatus",           nullToEmpty(extractJsonString(obj, "flightStatus")));
+    public static List<java.util.Map<String, String>> getAllPassengers() throws Exception {
+        List<java.util.Map<String, String>> passengers = new ArrayList<>();
+        String data = get("passengers");
 
-                passengers.add(p);
-            }
-
+        if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
             return passengers;
-        }    
+        }
 
-        public static List<java.util.Map<String, String>> getAllTickets() throws Exception {
-            List<java.util.Map<String, String>> tickets = new ArrayList<>();
-            String data = get("tickets");
+        Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
+        while (keyMatcher.find()) {
+            String key = keyMatcher.group(1);
+            int start = keyMatcher.end() - 1;
+            int end = findMatchingBrace(data, start);
+            if (end == -1) continue;
 
-            if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
-                return tickets;
+            String obj = data.substring(start, end + 1);
+
+            java.util.Map<String, String> p = new java.util.HashMap<>();
+            p.put("id", key);
+            if (p.get("bookingRef") == null || p.get("bookingRef").isEmpty()) {
+                p.put("bookingRef", key);
             }
+            p.put("passengerName",          nullToEmpty(extractJsonString(obj, "passengerName")));
+            p.put("flightId",               nullToEmpty(extractJsonString(obj, "flightId")));
+            p.put("distanceMiles",          nullToEmpty(extractJsonNumber(obj, "distanceMiles")));
+            p.put("flightDurationMinutes",  nullToEmpty(extractJsonNumber(obj, "flightDurationMinutes")));
+            p.put("priceUsd",               nullToEmpty(extractJsonNumber(obj, "priceUsd")));
+            p.put("flightStatus",           nullToEmpty(extractJsonString(obj, "flightStatus")));
 
-            Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
-            while (keyMatcher.find()) {
-                String key = keyMatcher.group(1);
-                int start = keyMatcher.end() - 1;
-                int end = findMatchingBrace(data, start);
-                if (end == -1) continue;
+            passengers.add(p);
+        }
 
-                String obj = data.substring(start, end + 1);
+        return passengers;
+    }
 
-                java.util.Map<String, String> t = new java.util.HashMap<>();
-                t.put("ticketNo",      extractJsonString(obj, "ticketNo") != null ? extractJsonString(obj, "ticketNo") : key);
-                t.put("bookingRef",    nullToEmpty(extractJsonString(obj, "bookingRef")));
-                t.put("name",          nullToEmpty(extractJsonString(obj, "name")));
-                t.put("flightNo",      nullToEmpty(extractJsonString(obj, "flightNo")));
-                t.put("baggage",       nullToEmpty(extractJsonString(obj, "baggage")));
-                t.put("status",        nullToEmpty(extractJsonString(obj, "status")));
-                t.put("checkInTime",   nullToEmpty(extractJsonString(obj, "checkInTime")));
+    public static List<java.util.Map<String, String>> getAllTickets() throws Exception {
+        List<java.util.Map<String, String>> tickets = new ArrayList<>();
+        String data = get("tickets");
 
-                String counterStr = extractJsonNumber(obj, "counter");
-                t.put("counter", counterStr != null ? counterStr : "0");
-
-                tickets.add(t);
-            }
-
-            tickets.sort((a, b) -> {
-                String t1 = a.get("checkInTime");
-                String t2 = b.get("checkInTime");
-                if (t1 == null) return 1;
-                if (t2 == null) return -1;
-                return t1.compareTo(t2);
-            });
-
+        if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
             return tickets;
         }
 
-        public static Map<String, String> getServingTicketForCounter(int counter) throws Exception {
-            List<Map<String, String>> all = getAllPendingTickets();
-            for (Map<String, String> t : all) {
-                if ("SERVING".equalsIgnoreCase(t.get("status"))) {
-                    try {
-                        if (Integer.parseInt(t.get("counter")) == counter) {
-                            return t;
-                        }
-                    } catch (NumberFormatException ignored) {}
-                }
-            }
-            return null;
+        Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
+        while (keyMatcher.find()) {
+            String key = keyMatcher.group(1);
+            int start = keyMatcher.end() - 1;
+            int end = findMatchingBrace(data, start);
+            if (end == -1) continue;
+
+            String obj = data.substring(start, end + 1);
+
+            java.util.Map<String, String> t = new java.util.HashMap<>();
+            t.put("ticketNo",      extractJsonString(obj, "ticketNo") != null ? extractJsonString(obj, "ticketNo") : key);
+            t.put("bookingRef",    nullToEmpty(extractJsonString(obj, "bookingRef")));
+            t.put("name",          nullToEmpty(extractJsonString(obj, "name")));
+            t.put("flightNo",      nullToEmpty(extractJsonString(obj, "flightNo")));
+            t.put("baggage",       nullToEmpty(extractJsonString(obj, "baggage")));
+            t.put("status",        nullToEmpty(extractJsonString(obj, "status")));
+            t.put("checkInTime",   nullToEmpty(extractJsonString(obj, "checkInTime")));
+            t.put("servedBy",      nullToEmpty(extractJsonString(obj, "servedBy")));
+
+            String counterStr = extractJsonNumber(obj, "counter");
+            t.put("counter", counterStr != null ? counterStr : "0");
+
+            tickets.add(t);
         }
 
-        public static List<Map<String, String>> getTicketsByStatus(String status) throws Exception {
-            List<Map<String, String>> all = getAllPendingTickets();
-            List<Map<String, String>> filtered = new ArrayList<>();
-            for (Map<String, String> t : all) {
-                if (status.equalsIgnoreCase(t.get("status"))) {
-                    filtered.add(t);
-                }
-            }
-            return filtered;
-        }
+        tickets.sort((a, b) -> {
+            String t1 = a.get("checkInTime");
+            String t2 = b.get("checkInTime");
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t1.compareTo(t2);
+        });
 
-        public static int countByStatus(String status) throws Exception {
-            return getTicketsByStatus(status).size();
-        }
+        return tickets;
+    }
 
-        public static int countWaitingTickets() throws Exception {
-            return getWaitingTickets().size();
-        }
-
-        public static int countByStatusAndCounter(String status, int counter) throws Exception {
-            int count = 0;
-            for (Map<String, String> t : getTicketsByStatus(status)) {
+    public static Map<String, String> getServingTicketForCounter(int counter) throws Exception {
+        List<Map<String, String>> all = getAllPendingTickets();
+        for (Map<String, String> t : all) {
+            if ("SERVING".equalsIgnoreCase(t.get("status"))) {
                 try {
-                    if (Integer.parseInt(t.get("counter")) == counter) count++;
+                    if (Integer.parseInt(t.get("counter")) == counter) {
+                        return t;
+                    }
                 } catch (NumberFormatException ignored) {}
             }
-            return count;
         }
+        return null;
+    }
 
-        public static Map<String, String> getTicketByNumber(String ticketNo) throws Exception {
+    public static List<Map<String, String>> getTicketsByStatus(String status) throws Exception {
+        List<Map<String, String>> all = getAllPendingTickets();
+        List<Map<String, String>> filtered = new ArrayList<>();
+        for (Map<String, String> t : all) {
+            if (status.equalsIgnoreCase(t.get("status"))) {
+                filtered.add(t);
+            }
+        }
+        return filtered;
+    }
+
+    public static int countByStatus(String status) throws Exception {
+        return getTicketsByStatus(status).size();
+    }
+
+    public static int countWaitingTickets() throws Exception {
+        return getWaitingTickets().size();
+    }
+
+    public static int countByStatusAndCounter(String status, int counter) throws Exception {
+        int count = 0;
+        for (Map<String, String> t : getTicketsByStatus(status)) {
+            try {
+                if (Integer.parseInt(t.get("counter")) == counter) count++;
+            } catch (NumberFormatException ignored) {}
+        }
+        return count;
+    }
+
+    public static Map<String, String> getTicketByNumber(String ticketNo) throws Exception {
         if (ticketNo == null || ticketNo.trim().isEmpty()) return null;
 
         List<Map<String, String>> pending = getAllPendingTickets();
@@ -645,16 +646,16 @@
         return null;
     }
 
-        private static String nullToEmpty(String s) {
-            return s == null ? "" : s;
-        }
-
-        private static String extractJsonNumber(String json, String key) {
-            Pattern p = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*([0-9]+)");
-            Matcher m = p.matcher(json);
-            if (m.find()) {
-                return m.group(1);
-            }
-            return null;
-        }
+    private static String nullToEmpty(String s) {
+        return s == null ? "" : s;
     }
+
+    private static String extractJsonNumber(String json, String key) {
+        Pattern p = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*([0-9]+)");
+        Matcher m = p.matcher(json);
+        if (m.find()) {
+            return m.group(1);
+        }
+        return null;
+    }
+}   

@@ -1,32 +1,31 @@
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.basic.BasicScrollBarUI;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
-import com.itextpdf.text.BaseColor;
-import com.itextpdf.text.Document;
-import com.itextpdf.text.Element;
-import com.itextpdf.text.Font;
-import com.itextpdf.text.FontFactory;
-import com.itextpdf.text.Paragraph;
-import com.itextpdf.text.Phrase;
-import com.itextpdf.text.pdf.PdfPCell;
-import com.itextpdf.text.pdf.PdfPTable;
-import com.itextpdf.text.pdf.PdfWriter;
-
 public class QueueMonitoringPanel extends JPanel {
+    private static final String SERVED_BY_KEY = "servedBy";
+
+    private final List<Map<String, String>> visibleTickets = new ArrayList<>();
+    private String staffId = "";
+    private boolean admin;
     private JTable queueTable;
     private DefaultTableModel tableModel;
     private JButton btnRefresh;
-    private JButton btnExportPdf;
+    private JButton btnExport;
 
     public QueueMonitoringPanel() {
         setLayout(new BorderLayout(0, 12));
@@ -106,19 +105,31 @@ public class QueueMonitoringPanel extends JPanel {
         outerCard.add(bodyCard, BorderLayout.CENTER);
 
         btnRefresh = createOutlineButton("Refresh Tickets");
-        btnExportPdf = createOutlineButton("Export PDF");
+        btnExport = createOutlineButton("Export PDF");
 
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         bottom.setOpaque(false);
-        bottom.add(btnExportPdf);
+        bottom.add(btnExport);
         bottom.add(btnRefresh);
 
         add(outerCard, BorderLayout.CENTER);
         add(bottom, BorderLayout.SOUTH);
 
         btnRefresh.addActionListener(e -> loadTickets());
-        btnExportPdf.addActionListener(e -> exportToPdf());
+        btnExport.addActionListener(e -> exportPdf());
+    }
+
+    public void setUser(String username, String role) {
+        this.staffId = username == null ? "" : username.trim();
+        this.admin = "ADMIN".equals(role);
         loadTickets();
+    }
+
+    public void clear() {
+        staffId = "";
+        admin = false;
+        visibleTickets.clear();
+        tableModel.setRowCount(0);
     }
 
     private JButton createOutlineButton(String text) {
@@ -332,21 +343,24 @@ public class QueueMonitoringPanel extends JPanel {
         }
     }
 
-    private String getCurrentCounter() {
-        return MainFrame.getLoggedInCounter();
+    private boolean isServedByCurrentUser(Map<String, String> ticket) {
+        if (admin) return true;
+        String servedBy = ticket.get(SERVED_BY_KEY);
+        return !staffId.isEmpty() && servedBy != null && servedBy.trim().equalsIgnoreCase(staffId);
     }
 
-    private boolean isMyTicket(Map<String, String> t) {
-        String myCounter = getCurrentCounter();
-        if (myCounter == null || myCounter.isEmpty()) return false;
-        String ticketCounter = t.get("counter");
-        if (ticketCounter == null || ticketCounter.isEmpty() || "0".equals(ticketCounter)) return false;
-        return myCounter.equals(ticketCounter.trim());
+    private static String counterDisplay(Map<String, String> t) {
+        String counter = t.get("counter");
+        return (counter == null || counter.equals("0") || counter.isEmpty())
+                ? "Unassigned"
+                : "Counter " + counter;
     }
 
     private void loadTickets() {
+        if (!admin && staffId.isEmpty()) return;
+
         btnRefresh.setEnabled(false);
-        btnExportPdf.setEnabled(false);
+        btnExport.setEnabled(false);
 
         new SwingWorker<List<Map<String, String>>, Void>() {
             @Override
@@ -357,115 +371,178 @@ public class QueueMonitoringPanel extends JPanel {
             @Override
             protected void done() {
                 btnRefresh.setEnabled(true);
-                btnExportPdf.setEnabled(true);
+                btnExport.setEnabled(true);
                 try {
                     List<Map<String, String>> tickets = get();
                     tableModel.setRowCount(0);
+                    visibleTickets.clear();
 
                     if (tickets != null) {
                         for (Map<String, String> t : tickets) {
-                            if (!isMyTicket(t)) continue;
-
-                            String counter = t.get("counter");
-                            String counterDisplay = (counter == null || counter.equals("0") || counter.isEmpty())
-                                    ? "Unassigned"
-                                    : "Counter " + counter;
-
+                            if (!isServedByCurrentUser(t)) continue;
+                            visibleTickets.add(t);
                             tableModel.addRow(new Object[]{
                                 t.get("ticketNo"),
                                 t.get("bookingRef"),
                                 t.get("name"),
                                 t.get("flightNo"),
-                                counterDisplay,
+                                counterDisplay(t),
                                 t.get("status")
                             });
                         }
                     }
                 } catch (Exception ex) {
                     showModernMessage(
-                    "Failed to load tickets.\nCheck internet / Firebase URL.",
-                    "Error", true);
+                            "Failed to load tickets.\nCheck internet / Firebase URL.",
+                            "Error", true);
                     ex.printStackTrace();
                 }
             }
         }.execute();
     }
 
-    private void exportToPdf() {
-        if (tableModel.getRowCount() == 0) {
-            showModernMessage("No tickets to export.", "Export PDF", false);
+    private void exportPdf() {
+        if (visibleTickets.isEmpty()) {
+            showModernMessage("There are no customers to export.", "Export PDF", true);
             return;
         }
 
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Save PDF");
-        chooser.setSelectedFile(new File("My_Served_Tickets.pdf"));
-        chooser.setFileFilter(new FileNameExtensionFilter("PDF files (*.pdf)", "pdf"));
-
+        chooser.setSelectedFile(new File("served_customers.pdf"));
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
 
         File file = chooser.getSelectedFile();
         if (!file.getName().toLowerCase().endsWith(".pdf")) {
-            file = new File(file.getAbsolutePath() + ".pdf");
+            file = new File(file.getParentFile(), file.getName() + ".pdf");
         }
 
-        final File outFile = file;
-        btnExportPdf.setEnabled(false);
+        try {
+            Files.write(file.toPath(), buildPdf());
+            showModernMessage("PDF saved to:\n" + file.getAbsolutePath(), "Export PDF", false);
+        } catch (IOException ex) {
+            showModernMessage("Failed to save PDF.\n" + ex.getMessage(), "Error", true);
+        }
+    }
 
-        new SwingWorker<Void, Void>() {
-            @Override
-            protected Void doInBackground() throws Exception {
-                Document document = new Document();
-                PdfWriter.getInstance(document, new FileOutputStream(outFile));
-                document.open();
+    private byte[] buildPdf() throws IOException {
+        final int pageW = 842;
+        final int pageH = 595;
+        final int margin = 40;
+        final int rowH = 22;
+        final int[] colX = {40, 140, 260, 450, 560, 680};
+        final String[] headers = {"Ticket No.", "Booking Ref", "Name", "Flight", "Counter", "Status"};
+        final int headerY = pageH - 105;
+        final int rowsPerPage = (headerY - 30 - margin) / rowH;
+        final int totalPages = (visibleTickets.size() + rowsPerPage - 1) / rowsPerPage;
+        final String generated = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        final String title = admin ? "All Customers" : "Served Customers - " + staffId;
 
-                Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
-                Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
-                Font cellFont = FontFactory.getFont(FontFactory.HELVETICA, 9);
+        List<String> streams = new ArrayList<>();
+        for (int p = 0; p < totalPages; p++) {
+            StringBuilder sb = new StringBuilder();
+            pdfText(sb, "F2", 16, margin, pageH - 55, title);
+            pdfText(sb, "F1", 10, margin, pageH - 75,
+                    "Total: " + visibleTickets.size() + "    Generated: " + generated);
 
-                Paragraph title = new Paragraph("Served Tickets — Counter " + getCurrentCounter(), titleFont);
-                title.setAlignment(Element.ALIGN_CENTER);
-                title.setSpacingAfter(16f);
-                document.add(title);
+            for (int c = 0; c < headers.length; c++) {
+                pdfText(sb, "F2", 10, colX[c], headerY, headers[c]);
+            }
+            sb.append("0.6 w ").append(margin).append(' ').append(headerY - 6).append(" m ")
+                    .append(pageW - margin).append(' ').append(headerY - 6).append(" l S\n");
 
-                PdfPTable pdfTable = new PdfPTable(6);
-                pdfTable.setWidthPercentage(100);
-                pdfTable.setWidths(new float[]{1.2f, 1.4f, 1.8f, 1.2f, 1.2f, 1.2f});
-
-                String[] headers = {"Ticket No.", "Booking Ref", "Name", "Flight", "Counter", "Status"};
-                for (String h : headers) {
-                    PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
-                    cell.setBackgroundColor(new BaseColor(240, 240, 240));
-                    cell.setPadding(6);
-                    cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                    pdfTable.addCell(cell);
+            int start = p * rowsPerPage;
+            int end = Math.min(start + rowsPerPage, visibleTickets.size());
+            int y = headerY - 6 - rowH + 6;
+            for (int i = start; i < end; i++) {
+                Map<String, String> t = visibleTickets.get(i);
+                String[] cells = {
+                    t.get("ticketNo"), t.get("bookingRef"), t.get("name"),
+                    t.get("flightNo"), counterDisplay(t), t.get("status")
+                };
+                for (int c = 0; c < cells.length; c++) {
+                    int width = (c + 1 < colX.length ? colX[c + 1] : pageW - margin) - colX[c] - 8;
+                    pdfText(sb, "F1", 10, colX[c], y, fit(cells[c], width / 5));
                 }
-
-                for (int i = 0; i < tableModel.getRowCount(); i++) {
-                    for (int j = 0; j < tableModel.getColumnCount(); j++) {
-                        Object val = tableModel.getValueAt(i, j);
-                        PdfPCell cell = new PdfPCell(new Phrase(val == null ? "" : val.toString(), cellFont));
-                        cell.setPadding(5);
-                        pdfTable.addCell(cell);
-                    }
-                }
-
-                document.add(pdfTable);
-                document.close();
-                return null;
+                y -= rowH;
             }
 
-            @Override
-            protected void done() {
-                btnExportPdf.setEnabled(true);
-                try {
-                    get();
-                    showModernMessage("PDF saved successfully.", "Export PDF", false);
-                } catch (Exception ex) {
-                    showModernMessage("Failed to export PDF.\n" + ex.getMessage(), "Error", true);
-                    ex.printStackTrace();
-                }
+            pdfText(sb, "F1", 9, pageW / 2 - 30, margin - 15, "Page " + (p + 1) + " of " + totalPages);
+            streams.add(sb.toString());
+        }
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        List<Integer> offsets = new ArrayList<>();
+        writeAscii(out, "%PDF-1.4\n");
+
+        StringBuilder kids = new StringBuilder();
+        for (int p = 0; p < totalPages; p++) {
+            kids.append(5 + p * 2).append(" 0 R ");
+        }
+
+        pdfObject(out, offsets, 1, "<< /Type /Catalog /Pages 2 0 R >>");
+        pdfObject(out, offsets, 2, "<< /Type /Pages /Kids [" + kids + "] /Count " + totalPages + " >>");
+        pdfObject(out, offsets, 3, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+        pdfObject(out, offsets, 4, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+
+        for (int p = 0; p < totalPages; p++) {
+            int pageId = 5 + p * 2;
+            int contentId = pageId + 1;
+            byte[] content = streams.get(p).getBytes(StandardCharsets.ISO_8859_1);
+            pdfObject(out, offsets, pageId,
+                    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + pageW + " " + pageH + "] "
+                            + "/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents " + contentId + " 0 R >>");
+            offsets.add(out.size());
+            writeAscii(out, contentId + " 0 obj\n<< /Length " + content.length + " >>\nstream\n");
+            out.write(content);
+            writeAscii(out, "\nendstream\nendobj\n");
+        }
+
+        int xrefPos = out.size();
+        StringBuilder xref = new StringBuilder();
+        xref.append("xref\n0 ").append(offsets.size() + 1).append("\n0000000000 65535 f \n");
+        for (int off : offsets) {
+            xref.append(String.format("%010d 00000 n \n", off));
+        }
+        xref.append("trailer\n<< /Size ").append(offsets.size() + 1).append(" /Root 1 0 R >>\nstartxref\n")
+                .append(xrefPos).append("\n%%EOF\n");
+        writeAscii(out, xref.toString());
+
+        return out.toByteArray();
+    }
+
+    private static void pdfObject(ByteArrayOutputStream out, List<Integer> offsets, int id, String body) throws IOException {
+        offsets.add(out.size());
+        writeAscii(out, id + " 0 obj\n" + body + "\nendobj\n");
+    }
+
+    private static void writeAscii(ByteArrayOutputStream out, String s) throws IOException {
+        out.write(s.getBytes(StandardCharsets.ISO_8859_1));
+    }
+
+    private static void pdfText(StringBuilder sb, String font, int size, int x, int y, String text) {
+        sb.append("BT /").append(font).append(' ').append(size).append(" Tf ")
+                .append(x).append(' ').append(y).append(" Td (")
+                .append(pdfEscape(text)).append(") Tj ET\n");
+    }
+
+    private static String pdfEscape(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (char ch : s.toCharArray()) {
+            if (ch == '\\' || ch == '(' || ch == ')') {
+                sb.append('\\').append(ch);
+            } else if (ch < 32 || ch > 255) {
+                sb.append('?');
+            } else {
+                sb.append(ch);
             }
-        }.execute();
+        }
+        return sb.toString();
+    }
+
+    private static String fit(String s, int maxChars) {
+        if (s == null) return "";
+        return s.length() <= maxChars ? s : s.substring(0, Math.max(0, maxChars - 1)) + "...";
     }
 }

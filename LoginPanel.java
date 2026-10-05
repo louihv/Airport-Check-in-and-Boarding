@@ -181,9 +181,7 @@ public class LoginPanel extends JPanel {
 
         centerWrapper.add(form);
         add(centerWrapper, BorderLayout.CENTER);
-    }
-
-    
+    }    
 
     private JButton createBackButton(String iconPath) {
         JButton btn = new JButton();

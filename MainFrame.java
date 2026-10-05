@@ -15,7 +15,8 @@ public class MainFrame extends JFrame {
     public static final Color MAIN_BG = new Color(244, 239, 233); 
     private String currentRole = null; // "STAFF" or "ADMIN"
     private String currentUsername = null;
-
+    private QueueMonitoringPanel monitorPanel;
+    private AccountPanel accountPanel;
     private JLabel lblUsername;
     private JLabel lblRole;
 
@@ -134,10 +135,12 @@ public class MainFrame extends JFrame {
         mainPanel.add(new TicketStatusPanel(this), "TicketStatus");
         mainPanel.add(new CounterStaffPanel(this), "Staff");
         mainPanel.add(new BoardingQueuePanel(this), "BoardingQueue");
-        mainPanel.add(new QueueMonitoringPanel(), "Monitor");
+        monitorPanel = new QueueMonitoringPanel();
+        mainPanel.add(monitorPanel, "Monitor");
         mainPanel.add(new PassengerPanel(this), "Passenger");
         mainPanel.add(new FlightSchedulerPanel(this), "FlightScheduler");
-        mainPanel.add(new AccountPanel(this), "Account");
+        accountPanel = new AccountPanel(this);
+        mainPanel.add(accountPanel, "Account");
         mainPanel.add(new UserManagementPanel(), "Users");
         mainPanel.add(new BaggageScannerPanel(this), "Baggage");
         mainPanel.add(new SystemLogsPanel(), "Logs");
@@ -197,7 +200,7 @@ public class MainFrame extends JFrame {
         btnPassenger.setEnabled(enabled);
         btnAccounts.setEnabled(enabled);
         btnUsers.setEnabled(enabled);
-        btnLogout.setEnabled(enabled);
+        btnLogout.setEnabled(true);
     }
 
     public void loginSuccess(String role, String username) {
@@ -206,8 +209,12 @@ public class MainFrame extends JFrame {
         lblUsername.setText(username);
         lblRole.setText(role);
         applyRoleSidebar(role);
+        monitorPanel.setUser(username, role);
+
+        setNavigationEnabled(false);
         sidebar.setVisible(true);
-        cardLayout.show(mainPanel, "Dashboard");
+        cardLayout.show(mainPanel, "Account");
+        accountPanel.setUser(username, role);
 
         new Thread(() -> {
             try {
@@ -216,19 +223,10 @@ public class MainFrame extends JFrame {
                 e.printStackTrace();
             }
         }).start();
-       
+
         revalidate();
         repaint();
-
-        Component[] comps = mainPanel.getComponents();
-        for (Component c : comps) {
-            if (c instanceof AccountPanel) {
-                ((AccountPanel) c).setUser(username, role);
-                break;
-            }
-        }
     }
-
 
     private void applyRoleSidebar(String role) {
         btnDash.setVisible(true);
@@ -269,9 +267,11 @@ public class MainFrame extends JFrame {
 
         currentRole = null;
         currentUsername = null;
+        monitorPanel.clear();
         lblUsername.setText("Username");
         lblRole.setText("ADMIN");
         sidebar.setVisible(false);
+        setNavigationEnabled(true);
         cardLayout.show(mainPanel, "Role");
         revalidate();
         repaint();
