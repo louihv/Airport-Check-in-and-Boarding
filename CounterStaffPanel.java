@@ -10,12 +10,16 @@ public class CounterStaffPanel extends JPanel {
     private JToggleButton[] counterButtons;
     private int selectedCounter = 1;
     private JLabel lblServingTicket, lblPassengerName, lblFlight, lblBaggage;
+    private JLabel lblGate, lblSeat, lblDate;
     private JLabel lblCurrentTicket, lblNextTicket;
     private JLabel lblDone, lblRemaining, lblUpcoming, lblSkipped, lblTransferred, lblOnHold;
     private JButton btnRefresh;
-    private JLabel lblWaited;
     private MainFrame mainFrame;
     private String currentTicketNo = null;
+    private javax.swing.Timer refreshTimer;
+    private JPanel boardingPassCard;
+    private JPanel passengerContainer;
+    private boolean isAnimating = false;
 
     public CounterStaffPanel(MainFrame frame) {
         this.mainFrame = frame;
@@ -52,50 +56,148 @@ public class CounterStaffPanel extends JPanel {
     }
 
     private JPanel createPassengerPanel() {
-        RoundedPanel panel = new RoundedPanel(16, Color.WHITE);
-        panel.setLayout(new BorderLayout(16, 0));
-        panel.setBorder(BorderFactory.createCompoundBorder(
+        passengerContainer = new JPanel(new BorderLayout());
+        passengerContainer.setOpaque(false);
+        passengerContainer.setPreferredSize(new Dimension(0, 220));
+
+        boardingPassCard = buildBoardingPassCard();
+        passengerContainer.add(boardingPassCard, BorderLayout.CENTER);
+        return passengerContainer;
+    }
+
+    private JPanel buildBoardingPassCard() {
+        RoundedPanel card = new RoundedPanel(16, Color.WHITE);
+        card.setLayout(new BorderLayout(0, 0));
+        card.setBorder(BorderFactory.createCompoundBorder(
                 new RoundedOutlineBorder(1, MainFrame.SECONDARY_BTN_BG, 16),
-                BorderFactory.createEmptyBorder(18, 20, 18, 20)
+                BorderFactory.createEmptyBorder(0, 0, 0, 0)
         ));
 
-        JLabel title = new JLabel("Current Customer");
-        title.setFont(AppFonts.bold(30));
-        title.setForeground(MainFrame.SECONDARY_BTN_BG);
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(true);
+        header.setBackground(MainFrame.SECONDARY_BTN_BG);
+        header.setBorder(BorderFactory.createEmptyBorder(12, 18, 12, 18));
 
-        JPanel info = new JPanel();
-        info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
-        info.setOpaque(false);
+        JLabel airline = new JLabel("BOARDING PASS");
+        airline.setFont(AppFonts.bold(16));
+        airline.setForeground(Color.WHITE);
 
-        lblServingTicket = new JLabel("---");
-        lblServingTicket.setFont(AppFonts.bold(40));
-        lblServingTicket.setForeground(MainFrame.SECONDARY_BTN_BG);
+        JLabel ticketBig = new JLabel("---");
+        ticketBig.setFont(AppFonts.bold(22));
+        ticketBig.setForeground(Color.WHITE);
+        ticketBig.setHorizontalAlignment(SwingConstants.RIGHT);
+        lblServingTicket = ticketBig;
 
-        lblPassengerName = createDetailLabel("Name: ");
-        lblFlight = createDetailLabel("Flight: ");
-        lblBaggage = createDetailLabel("Baggage: ");
+        header.add(airline, BorderLayout.WEST);
+        header.add(ticketBig, BorderLayout.EAST);
 
-        info.add(lblServingTicket);
-        info.add(Box.createVerticalStrut(6));
-        info.add(lblPassengerName);
-        info.add(Box.createVerticalStrut(2));
-        info.add(lblFlight);
-        info.add(Box.createVerticalStrut(2));
-        info.add(lblBaggage);
+        JPanel body = new JPanel(new GridLayout(1, 2, 20, 0));
+        body.setOpaque(false);
+        body.setBorder(BorderFactory.createEmptyBorder(16, 18, 16, 18));
 
-        lblWaited = new JLabel("00m 00s Waited");
-        lblWaited.setFont(AppFonts.regular(13));
-        lblWaited.setForeground(new Color(120, 130, 125));
-        lblWaited.setHorizontalAlignment(SwingConstants.RIGHT);
+        JPanel leftCol = new JPanel();
+        leftCol.setLayout(new BoxLayout(leftCol, BoxLayout.Y_AXIS));
+        leftCol.setOpaque(false);
 
-        JPanel right = new JPanel(new BorderLayout());
-        right.setOpaque(false);
-        right.add(lblWaited, BorderLayout.NORTH);
+        lblPassengerName = createPassLabel("PASSENGER", "—");
+        lblFlight = createPassLabel("FLIGHT", "—");
+        lblBaggage = createPassLabel("BAGGAGE", "—");
 
-        panel.add(title, BorderLayout.NORTH);
-        panel.add(info, BorderLayout.CENTER);
-        panel.add(right, BorderLayout.EAST);
-        return panel;
+        leftCol.add(lblPassengerName);
+        leftCol.add(Box.createVerticalStrut(10));
+        leftCol.add(lblFlight);
+        leftCol.add(Box.createVerticalStrut(10));
+        leftCol.add(lblBaggage);
+
+        JPanel rightCol = new JPanel();
+        rightCol.setLayout(new BoxLayout(rightCol, BoxLayout.Y_AXIS));
+        rightCol.setOpaque(false);
+
+        lblGate = createPassLabel("GATE / COUNTER", "—");
+        lblSeat = createPassLabel("STATUS", "WAITING");
+        lblDate = createPassLabel("DATE", java.time.LocalDate.now().toString());
+
+        rightCol.add(lblGate);
+        rightCol.add(Box.createVerticalStrut(10));
+        rightCol.add(lblSeat);
+        rightCol.add(Box.createVerticalStrut(10));
+        rightCol.add(lblDate);
+
+        body.add(leftCol);
+        body.add(rightCol);
+
+        JScrollPane scroll = new JScrollPane(body);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getViewport().setBackground(Color.WHITE);
+        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scroll.getVerticalScrollBar().setUI(new ModernScrollBarUI());
+        scroll.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 6));
+        footer.setOpaque(true);
+        footer.setBackground(new Color(245, 248, 246));
+        footer.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 0));
+        JLabel stub = new JLabel("• • • • • •  TEAR HERE  • • • • • •");
+        stub.setFont(AppFonts.regular(11));
+        stub.setForeground(new Color(140, 150, 145));
+        footer.add(stub);
+
+        card.add(header, BorderLayout.NORTH);
+        card.add(scroll, BorderLayout.CENTER);
+        card.add(footer, BorderLayout.SOUTH);
+
+        return card;
+    }
+
+    private JLabel createPassLabel(String title, String value) {
+        JLabel lbl = new JLabel("<html><div style='color:#6a7a6e;font-size:10px;'>" + title +
+                "</div><div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>" + value + "</div></html>");
+        lbl.setFont(AppFonts.regular(13));
+        return lbl;
+    }
+
+    private void animatePrintBoardingPass(Runnable afterAnimation) {
+        if (isAnimating || boardingPassCard == null) {
+            if (afterAnimation != null) afterAnimation.run();
+            return;
+        }
+        isAnimating = true;
+
+        final int startY = 0;
+        final int endY = passengerContainer.getHeight() + 40;
+        final int duration = 700;
+        final long startTime = System.currentTimeMillis();
+
+        javax.swing.Timer anim = new javax.swing.Timer(16, null);
+        anim.addActionListener(e -> {
+            long elapsed = System.currentTimeMillis() - startTime;
+            float progress = Math.min(1f, elapsed / (float) duration);
+            float eased = 1f - (1f - progress) * (1f - progress);
+
+            int y = (int) (startY + (endY - startY) * eased);
+            boardingPassCard.setLocation(boardingPassCard.getX(), y);
+            boardingPassCard.setOpaque(false);
+            float alpha = 1f - progress * 0.85f;
+            boardingPassCard.putClientProperty("alpha", alpha);
+            passengerContainer.repaint();
+
+            if (progress >= 1f) {
+                anim.stop();
+                passengerContainer.remove(boardingPassCard);
+                boardingPassCard = buildBoardingPassCard();
+                boardingPassCard.setLocation(0, 0);
+                passengerContainer.add(boardingPassCard, BorderLayout.CENTER);
+                passengerContainer.revalidate();
+                passengerContainer.repaint();
+                isAnimating = false;
+                if (afterAnimation != null) afterAnimation.run();
+            }
+        });
+        anim.start();
     }
 
     private JPanel createControlPanel() {
@@ -203,7 +305,7 @@ public class CounterStaffPanel extends JPanel {
 
     private JLabel createStatCard(String title, String value) {
         RoundedPanel card = new RoundedPanel(10, new Color(248, 250, 248));
-        card.setLayout(new BorderLayout()); 
+        card.setLayout(new BorderLayout());
         card.setBorder(BorderFactory.createCompoundBorder(
                 new RoundedOutlineBorder(1, MainFrame.SECONDARY_BTN_BG, 10),
                 BorderFactory.createEmptyBorder(10, 8, 10, 8)
@@ -326,8 +428,35 @@ public class CounterStaffPanel extends JPanel {
     }
 
     private void callNextPassenger() {
+        if (isAnimating) return;
+
         if (currentTicketNo != null) {
-            updateCurrentStatus("COMPLETED");
+            String ticket = currentTicketNo;
+            int counter = selectedCounter;
+
+            animatePrintBoardingPass(() -> {
+                new SwingWorker<Void, Void>() {
+                    @Override
+                    protected Void doInBackground() throws Exception {
+                        FirebaseHelper.updateTicketStatus(ticket, "COMPLETED", counter);
+                        return null;
+                    }
+
+                    @Override
+                    protected void done() {
+                        try {
+                            get();
+                            currentTicketNo = null;
+                            clearDisplay();
+                            autoCallFirstPassenger();
+                            refreshStats();
+                        } catch (Exception ex) {
+                            showModernMessage("Failed to update status.\n" + ex.getMessage(), "Error", true);
+                            ex.printStackTrace();
+                        }
+                    }
+                }.execute();
+            });
             return;
         }
 
@@ -390,7 +519,7 @@ public class CounterStaffPanel extends JPanel {
                     autoCallFirstPassenger();
                     refreshStats();
                 } catch (Exception ex) {
-                   showModernMessage("Failed to update status.\n" + ex.getMessage(), "Error", true);
+                    showModernMessage("Failed to update status.\n" + ex.getMessage(), "Error", true);
                     ex.printStackTrace();
                 }
             }
@@ -399,11 +528,10 @@ public class CounterStaffPanel extends JPanel {
 
     private void transferPassenger() {
         if (currentTicketNo == null) {
-            JOptionPane.showMessageDialog(this, "No passenger is currently being served.");
+            showModernMessage("No passenger is currently being served.", "Notice", false);
             return;
         }
 
-        String[] options = {"1", "2", "3", "4"};
         String chosen = showModernChoice(
                 "Transfer passenger to which counter?",
                 "Transfer",
@@ -414,7 +542,8 @@ public class CounterStaffPanel extends JPanel {
         int targetCounter = Integer.parseInt(chosen);
         int currentCounter = selectedCounter;
         if (targetCounter == currentCounter) {
-            showModernMessage("Passenger is already at this counter.", "Transfer", false);            return;
+            showModernMessage("Passenger is already at this counter.", "Transfer", false);
+            return;
         }
 
         String ticket = currentTicketNo;
@@ -450,7 +579,6 @@ public class CounterStaffPanel extends JPanel {
                 return new Insets(3, 3, 3, 3);
             }
         });
-        strip.setBackground(Color.WHITE);
 
         ButtonGroup group = new ButtonGroup();
         counterButtons = new JToggleButton[4];
@@ -464,22 +592,25 @@ public class CounterStaffPanel extends JPanel {
             btn.setPreferredSize(new Dimension(44, 32));
             btn.setBorder(BorderFactory.createEmptyBorder());
             btn.setContentAreaFilled(false);
-            btn.setOpaque(true);
+            // btn.setBackground(null);
+            btn.setOpaque(false);
+            btn.setForeground(MainFrame.NAV_BTN_BG);
 
-            btn.setBackground(Color.WHITE);
-            btn.setForeground(new Color(27, 77, 46));
 
             btn.addItemListener(e -> {
                 if (btn.isSelected()) {
                     btn.setBackground(new Color(46, 160, 90));
                     btn.setForeground(Color.WHITE);
+                    btn.setOpaque(true);
                     selectedCounter = counter;
                     currentTicketNo = null;
                     updateOnlineStatus();
                     loadCurrentServingTicket();
                 } else {
-                    btn.setBackground(Color.WHITE);
+                    btn.setBackground(null);
                     btn.setForeground(new Color(27, 77, 46));
+                    btn.setOpaque(false);
+                    btn.setContentAreaFilled(false);
                 }
             });
 
@@ -489,7 +620,6 @@ public class CounterStaffPanel extends JPanel {
         }
 
         counterButtons[0].setSelected(true);
-
         return strip;
     }
 
@@ -573,7 +703,7 @@ public class CounterStaffPanel extends JPanel {
         cancel.setPreferredSize(new Dimension(100, 36));
         cancel.addActionListener(e -> dialog.dispose());
 
-        JButton ok = createColoredButton("Recall", new Color(50, 170, 200));
+        JButton ok = createColoredButton("OK", new Color(50, 170, 200));
         ok.setPreferredSize(new Dimension(100, 36));
         ok.addActionListener(e -> {
             result[0] = (String) combo.getSelectedItem();
@@ -607,15 +737,15 @@ public class CounterStaffPanel extends JPanel {
         combo.setBorder(new RoundedOutlineBorder(1, MainFrame.SECONDARY_BTN_BG, 10) {
             @Override
             public Insets getBorderInsets(Component c) {
-                return new Insets(4, 10, 4, 10);  
+                return new Insets(4, 10, 4, 10);
             }
         });
 
         combo.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value,
-                                                        int index, boolean isSelected,
-                                                        boolean cellHasFocus) {
+                                                          int index, boolean isSelected,
+                                                          boolean cellHasFocus) {
                 JLabel label = (JLabel) super.getListCellRendererComponent(
                         list, value, index, isSelected, cellHasFocus);
 
@@ -636,54 +766,54 @@ public class CounterStaffPanel extends JPanel {
     }
 
     private void recallPassenger() {
-    new SwingWorker<List<Map<String, String>>, Void>() {
-        @Override
-        protected List<Map<String, String>> doInBackground() throws Exception {
-            List<Map<String, String>> list = new ArrayList<>();
-            list.addAll(FirebaseHelper.getTicketsByStatus("SKIPPED"));
-            list.addAll(FirebaseHelper.getTicketsByStatus("ON_HOLD"));
-            return list;
-        }
-
-        @Override
-        protected void done() {
-            try {
-                List<Map<String, String>> candidates = get();
-                if (candidates == null || candidates.isEmpty()) {
-                    showModernMessage("No more passengers to recall.", "Recall", false);
-                    return;
-                }
-
-                String[] choices = candidates.stream()
-                        .map(t -> t.get("ticketNo") + " – " + t.get("name") + " (" + t.get("status") + ")")
-                        .toArray(String[]::new);
-
-                String selected = showModernChoice(
-                        "Select ticket to recall:",
-                        "Recall",
-                        choices
-                );
-                if (selected == null) return;
-
-                String ticketNo = selected.split(" – ")[0].trim();
-                int counter = selectedCounter;
-
-                if (currentTicketNo != null) {
-                    FirebaseHelper.updateTicketStatus(currentTicketNo, "COMPLETED", counter);
-                }
-
-                FirebaseHelper.updateTicketStatus(ticketNo, "SERVING", counter);
-                currentTicketNo = ticketNo;
-
-                Map<String, String> t = FirebaseHelper.getTicketByNumber(ticketNo);
-                if (t != null) updateLabels(t);
-                refreshNextTicket();
-                refreshStats();
-            } catch (Exception ex) {
-                showModernMessage("Failed to recall.\n" + ex.getMessage(), "Error", true);
+        new SwingWorker<List<Map<String, String>>, Void>() {
+            @Override
+            protected List<Map<String, String>> doInBackground() throws Exception {
+                List<Map<String, String>> list = new ArrayList<>();
+                list.addAll(FirebaseHelper.getTicketsByStatus("SKIPPED"));
+                list.addAll(FirebaseHelper.getTicketsByStatus("ON_HOLD"));
+                return list;
             }
-        }
-    }.execute();
+
+            @Override
+            protected void done() {
+                try {
+                    List<Map<String, String>> candidates = get();
+                    if (candidates == null || candidates.isEmpty()) {
+                        showModernMessage("No more passengers to recall.", "Recall", false);
+                        return;
+                    }
+
+                    String[] choices = candidates.stream()
+                            .map(t -> t.get("ticketNo") + " – " + t.get("name") + " (" + t.get("status") + ")")
+                            .toArray(String[]::new);
+
+                    String selected = showModernChoice(
+                            "Select ticket to recall:",
+                            "Recall",
+                            choices
+                    );
+                    if (selected == null) return;
+
+                    String ticketNo = selected.split(" – ")[0].trim();
+                    int counter = selectedCounter;
+
+                    if (currentTicketNo != null) {
+                        FirebaseHelper.updateTicketStatus(currentTicketNo, "COMPLETED", counter);
+                    }
+
+                    FirebaseHelper.updateTicketStatus(ticketNo, "SERVING", counter);
+                    currentTicketNo = ticketNo;
+
+                    Map<String, String> t = FirebaseHelper.getTicketByNumber(ticketNo);
+                    if (t != null) updateLabels(t);
+                    refreshNextTicket();
+                    refreshStats();
+                } catch (Exception ex) {
+                    showModernMessage("Failed to recall.\n" + ex.getMessage(), "Error", true);
+                }
+            }
+        }.execute();
     }
 
     private void refreshNextTicket() {
@@ -713,8 +843,8 @@ public class CounterStaffPanel extends JPanel {
             protected int[] doInBackground() throws Exception {
                 return new int[]{
                         FirebaseHelper.countByStatus("COMPLETED"),
-                        FirebaseHelper.countByStatus("WAITING"),
-                        FirebaseHelper.countByStatus("WAITING"), 
+                        FirebaseHelper.countWaitingTickets(),
+                        FirebaseHelper.countWaitingTickets(),
                         FirebaseHelper.countByStatus("SKIPPED"),
                         FirebaseHelper.countByStatus("TRANSFERRED"),
                         FirebaseHelper.countByStatus("ON_HOLD")
@@ -740,18 +870,40 @@ public class CounterStaffPanel extends JPanel {
         String ticket = t.get("ticketNo");
         lblServingTicket.setText(ticket != null ? ticket : "---");
         lblCurrentTicket.setText(ticket != null ? ticket : "---");
-        lblPassengerName.setText("Name: " + nullToEmpty(t.get("name")));
-        lblFlight.setText("Flight: " + nullToEmpty(t.get("flightNo")));
-        lblBaggage.setText("Baggage: " + nullToEmpty(t.get("baggage")));
+
+        String name = nullToEmpty(t.get("name"));
+        String flight = nullToEmpty(t.get("flightNo"));
+        String baggage = nullToEmpty(t.get("baggage"));
+
+        lblPassengerName.setText("<html><div style='color:#6a7a6e;font-size:10px;'>PASSENGER</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>" + (name.isEmpty() ? "—" : name) + "</div></html>");
+        lblFlight.setText("<html><div style='color:#6a7a6e;font-size:10px;'>FLIGHT</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>" + (flight.isEmpty() ? "—" : flight) + "</div></html>");
+        lblBaggage.setText("<html><div style='color:#6a7a6e;font-size:10px;'>BAGGAGE</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>" + (baggage.isEmpty() ? "—" : baggage) + "</div></html>");
+        lblGate.setText("<html><div style='color:#6a7a6e;font-size:10px;'>GATE / COUNTER</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>Counter " + selectedCounter + "</div></html>");
+        lblSeat.setText("<html><div style='color:#6a7a6e;font-size:10px;'>STATUS</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>SERVING</div></html>");
+        lblDate.setText("<html><div style='color:#6a7a6e;font-size:10px;'>DATE</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>" + java.time.LocalDate.now() + "</div></html>");
     }
 
     private void clearDisplay() {
         lblServingTicket.setText("---");
         lblCurrentTicket.setText("---");
-        lblPassengerName.setText("Name: ");
-        lblFlight.setText("Flight: ");
-        lblBaggage.setText("Baggage: ");
-        lblWaited.setText("00m 00s Waited");
+        lblPassengerName.setText("<html><div style='color:#6a7a6e;font-size:10px;'>PASSENGER</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>—</div></html>");
+        lblFlight.setText("<html><div style='color:#6a7a6e;font-size:10px;'>FLIGHT</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>—</div></html>");
+        lblBaggage.setText("<html><div style='color:#6a7a6e;font-size:10px;'>BAGGAGE</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>—</div></html>");
+        lblGate.setText("<html><div style='color:#6a7a6e;font-size:10px;'>GATE / COUNTER</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>—</div></html>");
+        lblSeat.setText("<html><div style='color:#6a7a6e;font-size:10px;'>STATUS</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>WAITING</div></html>");
+        lblDate.setText("<html><div style='color:#6a7a6e;font-size:10px;'>DATE</div>" +
+                "<div style='color:#1b4d2e;font-size:14px;font-weight:bold;'>" + java.time.LocalDate.now() + "</div></html>");
     }
 
     private String nullToEmpty(String s) {
@@ -770,13 +922,6 @@ public class CounterStaffPanel extends JPanel {
                 System.err.println("Failed to update online status: " + ex.getMessage());
             }
         }).start();
-    }
-
-    private JLabel createDetailLabel(String text) {
-        JLabel label = new JLabel(text);
-        label.setFont(AppFonts.regular(14));
-        label.setForeground(new Color(50, 65, 55));
-        return label;
     }
 
     private static class RoundedPanel extends JPanel {
@@ -834,6 +979,51 @@ public class CounterStaffPanel extends JPanel {
         @Override
         public Insets getBorderInsets(Component c) {
             return new Insets(8, 14, 8, 14);
+        }
+    }
+
+    private static class ModernScrollBarUI extends javax.swing.plaf.basic.BasicScrollBarUI {
+        @Override
+        protected void configureScrollBarColors() {
+            this.thumbColor = new Color(180, 190, 200);
+            this.trackColor = new Color(245, 247, 250);
+        }
+
+        @Override
+        protected JButton createDecreaseButton(int orientation) {
+            return createZeroButton();
+        }
+
+        @Override
+        protected JButton createIncreaseButton(int orientation) {
+            return createZeroButton();
+        }
+
+        private JButton createZeroButton() {
+            JButton btn = new JButton();
+            btn.setPreferredSize(new Dimension(0, 0));
+            btn.setMinimumSize(new Dimension(0, 0));
+            btn.setMaximumSize(new Dimension(0, 0));
+            return btn;
+        }
+
+        @Override
+        protected void paintTrack(Graphics g, JComponent c, Rectangle trackBounds) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(trackColor);
+            g2.fillRoundRect(trackBounds.x, trackBounds.y, trackBounds.width, trackBounds.height, 8, 8);
+            g2.dispose();
+        }
+
+        @Override
+        protected void paintThumb(Graphics g, JComponent c, Rectangle thumbBounds) {
+            if (thumbBounds.isEmpty() || !scrollbar.isEnabled()) return;
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(thumbColor);
+            g2.fillRoundRect(thumbBounds.x + 1, thumbBounds.y + 1, thumbBounds.width - 2, thumbBounds.height - 2, 6, 6);
+            g2.dispose();
         }
     }
 }

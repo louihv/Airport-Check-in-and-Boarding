@@ -1,8 +1,8 @@
     import java.io.*;
-    import java.util.*;
     import java.net.*;
     import java.nio.charset.StandardCharsets;
     import java.security.MessageDigest;
+    import java.util.*;
     import java.util.regex.*;
 
     public class FirebaseHelper {
@@ -113,7 +113,8 @@
         public static void saveUser(String username, String password, String role, String counter) throws Exception {
         String hashed = hash(password);
         String json = String.format(
-            "{\"username\":\"%s\",\"password\":\"%s\",\"role\":\"%s\",\"counter\":\"%s\",\"status\":\"Offline\"}",
+            "{\"username\":\"%s\",\"password\":\"%s\",\"role\":\"%s\",\"counter\":\"%s\"," +
+            "\"status\":\"Offline\",\"mustChangePassword\":true}",
             username,
             hashed,
             role,
@@ -190,6 +191,26 @@
             );
             put("baggage/" + tagNo, json);
 
+            String baggageInfo = tagNo + " (" + String.format("%.2f", weight) + " kg)";
+
+            String pendingJson = get("pendingTickets");
+            if (pendingJson != null && !pendingJson.equals("null") && !pendingJson.isEmpty()) {
+                Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(pendingJson);
+                while (keyMatcher.find()) {
+                    String ticketKey = keyMatcher.group(1);
+                    int start = keyMatcher.end() - 1;
+                    int end = findMatchingBrace(pendingJson, start);
+                    if (end == -1) continue;
+
+                    String obj = pendingJson.substring(start, end + 1);
+                    String ref = extractJsonString(obj, "bookingRef");
+                    if (bookingRef.equalsIgnoreCase(ref)) {
+                        put("pendingTickets/" + ticketKey + "/baggage", "\"" + baggageInfo + "\"");
+                        return;
+                    }
+                }
+            }
+
             String ticketsJson = get("tickets");
             if (ticketsJson != null && !ticketsJson.equals("null") && !ticketsJson.isEmpty()) {
                 Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(ticketsJson);
@@ -202,7 +223,6 @@
                     String obj = ticketsJson.substring(start, end + 1);
                     String ref = extractJsonString(obj, "bookingRef");
                     if (bookingRef.equalsIgnoreCase(ref)) {
-                        String baggageInfo = tagNo + " (" + String.format("%.2f", weight) + " kg)";
                         put("tickets/" + ticketKey + "/baggage", "\"" + baggageInfo + "\"");
                         break;
                     }
@@ -211,25 +231,25 @@
         }
 
         public static void saveTicket(Passenger p) throws Exception {
-        String json = String.format(
-            "{\"ticketNo\":\"%s\",\"bookingRef\":\"%s\",\"name\":\"%s\",\"flightNo\":\"%s\"," +
-            "\"baggage\":\"%s\",\"status\":\"%s\",\"counter\":%d,\"checkInTime\":\"%s\",\"cabin\":\"%s\"}",
-            p.getTicketNumber(),
-            p.getBookingRef(),
-            p.getName(),
-            p.getFlightNumber(),
-            p.getBaggageInfo(),
-            p.getStatus(),
-            p.getAssignedCounter(),
-            p.getCheckInTime().toString(),
-            p.getCabin() == null ? "Economy" : p.getCabin()
-        );
-        put("tickets/" + p.getTicketNumber(), json);
+            String json = String.format(
+                "{\"ticketNo\":\"%s\",\"bookingRef\":\"%s\",\"name\":\"%s\",\"flightNo\":\"%s\"," +
+                "\"baggage\":\"%s\",\"status\":\"%s\",\"counter\":%d,\"checkInTime\":\"%s\",\"cabin\":\"%s\"}",
+                p.getTicketNumber(),
+                p.getBookingRef(),
+                p.getName(),
+                p.getFlightNumber(),
+                p.getBaggageInfo(),
+                p.getStatus(),
+                p.getAssignedCounter(),
+                p.getCheckInTime().toString(),
+                p.getCabin() == null ? "Economy" : p.getCabin()
+            );
+            put("pendingTickets/" + p.getTicketNumber(), json);
         }
 
         public static void updateTicketStatus(String ticketNo, String status, int counter) throws Exception {
-            put("tickets/" + ticketNo + "/status", "\"" + status + "\"");
-            put("tickets/" + ticketNo + "/counter", String.valueOf(counter));
+            put("pendingTickets/" + ticketNo + "/status", "\"" + status + "\"");
+            put("pendingTickets/" + ticketNo + "/counter", String.valueOf(counter));
 
             if ("COMPLETED".equalsIgnoreCase(status) || "SERVED".equalsIgnoreCase(status)) {
                 moveTicketToCompleted(ticketNo);
@@ -239,19 +259,75 @@
         public static void moveTicketToCompleted(String ticketNo) throws Exception {
             if (ticketNo == null || ticketNo.trim().isEmpty()) return;
 
-            String data = get("tickets/" + ticketNo);
+            String data = get("pendingTickets/" + ticketNo);
             if (data == null || data.equals("null") || data.trim().isEmpty()) return;
 
-            if (!data.contains("\"status\":\"COMPLETED\"") && !data.contains("\"status\":\"SERVED\"")) {
+            put("tickets/" + ticketNo, data);
+            delete("pendingTickets/" + ticketNo);
+        }
+
+        public static List<Map<String, String>> getAllPendingTickets() throws Exception {
+            List<Map<String, String>> tickets = new ArrayList<>();
+            String data = get("pendingTickets");
+
+            if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
+                return tickets;
             }
 
-            put("completedTickets/" + ticketNo, data);
-            delete("tickets/" + ticketNo);
+            Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
+            while (keyMatcher.find()) {
+                String key = keyMatcher.group(1);
+                int start = keyMatcher.end() - 1;
+                int end = findMatchingBrace(data, start);
+                if (end == -1) continue;
+
+                String obj = data.substring(start, end + 1);
+
+                Map<String, String> t = new HashMap<>();
+                t.put("ticketNo",      extractJsonString(obj, "ticketNo") != null ? extractJsonString(obj, "ticketNo") : key);
+                t.put("bookingRef",    nullToEmpty(extractJsonString(obj, "bookingRef")));
+                t.put("name",          nullToEmpty(extractJsonString(obj, "name")));
+                t.put("flightNo",      nullToEmpty(extractJsonString(obj, "flightNo")));
+                t.put("baggage",       nullToEmpty(extractJsonString(obj, "baggage")));
+                t.put("status",        nullToEmpty(extractJsonString(obj, "status")));
+                t.put("checkInTime",   nullToEmpty(extractJsonString(obj, "checkInTime")));
+                t.put("cabin",         nullToEmpty(extractJsonString(obj, "cabin")));
+
+                String counterStr = extractJsonNumber(obj, "counter");
+                t.put("counter", counterStr != null ? counterStr : "0");
+
+                tickets.add(t);
+            }
+
+            tickets.sort((a, b) -> {
+                String t1 = a.get("checkInTime");
+                String t2 = b.get("checkInTime");
+                if (t1 == null) return 1;
+                if (t2 == null) return -1;
+                return t1.compareTo(t2);
+            });
+
+            return tickets;
+        }
+
+        public static List<Map<String, String>> getWaitingTickets() throws Exception {
+            List<Map<String, String>> all = getAllPendingTickets();
+            List<Map<String, String>> waiting = new ArrayList<>();
+            for (Map<String, String> t : all) {
+                String status = t.get("status");
+                if (status == null || status.isEmpty()
+                        || "WAITING".equalsIgnoreCase(status)
+                        || "PENDING".equalsIgnoreCase(status)
+                        || "CHECKED_IN".equalsIgnoreCase(status)) {
+                    waiting.add(t);
+                }
+            }
+            return waiting;
         }
 
         public static List<Map<String, String>> getAllCompletedTickets() throws Exception {
             List<Map<String, String>> tickets = new ArrayList<>();
-            String data = get("completedTickets");
+            String data = get("tickets");
 
             if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
                 return tickets;
@@ -507,33 +583,22 @@
             return tickets;
         }
 
-        public static List<java.util.Map<String, String>> getWaitingTickets() throws Exception {
-            List<java.util.Map<String, String>> all = getAllTickets();
-            List<java.util.Map<String, String>> waiting = new ArrayList<>();
-            for (java.util.Map<String, String> t : all) {
-                if ("WAITING".equalsIgnoreCase(t.get("status"))) {
-                    waiting.add(t);
+        public static Map<String, String> getServingTicketForCounter(int counter) throws Exception {
+            List<Map<String, String>> all = getAllPendingTickets();
+            for (Map<String, String> t : all) {
+                if ("SERVING".equalsIgnoreCase(t.get("status"))) {
+                    try {
+                        if (Integer.parseInt(t.get("counter")) == counter) {
+                            return t;
+                        }
+                    } catch (NumberFormatException ignored) {}
                 }
             }
-            return waiting;
+            return null;
         }
-
-        public static Map<String, String> getServingTicketForCounter(int counter) throws Exception {
-        List<Map<String, String>> all = getAllTickets();
-        for (Map<String, String> t : all) {
-            if ("SERVING".equalsIgnoreCase(t.get("status"))) {
-                try {
-                    if (Integer.parseInt(t.get("counter")) == counter) {
-                        return t;
-                    }
-                } catch (NumberFormatException ignored) {}
-            }
-        }
-        return null;
-    }
 
         public static List<Map<String, String>> getTicketsByStatus(String status) throws Exception {
-            List<Map<String, String>> all = getAllTickets();
+            List<Map<String, String>> all = getAllPendingTickets();
             List<Map<String, String>> filtered = new ArrayList<>();
             for (Map<String, String> t : all) {
                 if (status.equalsIgnoreCase(t.get("status"))) {
@@ -547,6 +612,10 @@
             return getTicketsByStatus(status).size();
         }
 
+        public static int countWaitingTickets() throws Exception {
+            return getWaitingTickets().size();
+        }
+
         public static int countByStatusAndCounter(String status, int counter) throws Exception {
             int count = 0;
             for (Map<String, String> t : getTicketsByStatus(status)) {
@@ -557,16 +626,24 @@
             return count;
         }
 
-        public static java.util.Map<String, String> getTicketByNumber(String ticketNo) throws Exception {
-            if (ticketNo == null || ticketNo.trim().isEmpty()) return null;
-            List<java.util.Map<String, String>> all = getAllTickets();
-            for (java.util.Map<String, String> t : all) {
-                if (ticketNo.equalsIgnoreCase(t.get("ticketNo"))) {
-                    return t;
-                }
+        public static Map<String, String> getTicketByNumber(String ticketNo) throws Exception {
+        if (ticketNo == null || ticketNo.trim().isEmpty()) return null;
+
+        List<Map<String, String>> pending = getAllPendingTickets();
+        for (Map<String, String> t : pending) {
+            if (ticketNo.equalsIgnoreCase(t.get("ticketNo"))) {
+                return t;
             }
-            return null;
         }
+
+        List<Map<String, String>> all = getAllTickets();
+        for (Map<String, String> t : all) {
+            if (ticketNo.equalsIgnoreCase(t.get("ticketNo"))) {
+                return t;
+            }
+        }
+        return null;
+    }
 
         private static String nullToEmpty(String s) {
             return s == null ? "" : s;

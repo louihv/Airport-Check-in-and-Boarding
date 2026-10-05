@@ -8,7 +8,7 @@ public class MainFrame extends JFrame {
     private CardLayout cardLayout;
     private JPanel mainPanel;
     private JPanel sidebar;
-    private JButton btnDash, btnStaff, btnFlights, btnMonitor, btnReports,btnBoarding, btnPassenger, btnUsers, btnLogout, btnLaunchTV;
+    private JButton btnDash, btnStaff, btnFlights, btnMonitor, btnReports,btnBoarding, btnPassenger, btnAccounts, btnUsers, btnLogout, btnLaunchTV;
     public static final Color SIDEBAR_BG = new Color(20, 42, 31);
     public static final Color NAV_BTN_BG = new Color(17, 34, 80);
     public static final Color SECONDARY_BTN_BG = new Color(60, 81, 126);
@@ -95,6 +95,7 @@ public class MainFrame extends JFrame {
         btnMonitor = createNavButton("Queue Monitoring","https://img.icons8.com/ios-filled/50/ffffff/monitor.png");
         btnFlights = createNavButton("Flight Scheduler", "https://img.icons8.com/ios-filled/50/ffffff/airplane-mode-on.png");
         btnPassenger = createNavButton("Passenger","https://img.icons8.com/ios-filled/50/ffffff/walking.png");
+        btnAccounts = createNavButton("Accounts","https://img.icons8.com/ios-filled/50/ffffff/boarding-pass.png");        
         btnUsers = createNavButton("User Management","https://img.icons8.com/ios-filled/50/ffffff/group-foreground-selected.png");
         btnLaunchTV = createNavButton("Launch TV Display","https://img.icons8.com/ios-filled/50/ffffff/tv.png");
         btnLogout = createNavButton("Logout","https://img.icons8.com/ios-filled/50/ffffff/exit.png");
@@ -102,13 +103,15 @@ public class MainFrame extends JFrame {
         navPanel.add(Box.createVerticalStrut(6));
         navPanel.add(btnStaff);
         navPanel.add(Box.createVerticalStrut(6));
-        navPanel.add(btnBoarding);
-        navPanel.add(Box.createVerticalStrut(6));
+        // navPanel.add(btnBoarding);
+        // navPanel.add(Box.createVerticalStrut(6));
         navPanel.add(btnMonitor);
         navPanel.add(Box.createVerticalStrut(6));
         navPanel.add(btnFlights);
         navPanel.add(Box.createVerticalStrut(6));
         navPanel.add(btnPassenger);
+        navPanel.add(Box.createVerticalStrut(6));
+        navPanel.add(btnAccounts);
         navPanel.add(Box.createVerticalStrut(6));
         navPanel.add(btnUsers);
         navPanel.add(Box.createVerticalStrut(6));
@@ -134,6 +137,7 @@ public class MainFrame extends JFrame {
         mainPanel.add(new QueueMonitoringPanel(), "Monitor");
         mainPanel.add(new PassengerPanel(this), "Passenger");
         mainPanel.add(new FlightSchedulerPanel(this), "FlightScheduler");
+        mainPanel.add(new AccountPanel(this), "Account");
         mainPanel.add(new UserManagementPanel(), "Users");
         mainPanel.add(new BaggageScannerPanel(this), "Baggage");
         mainPanel.add(new SystemLogsPanel(), "Logs");
@@ -145,6 +149,7 @@ public class MainFrame extends JFrame {
         btnFlights.addActionListener(e -> cardLayout.show(mainPanel, "FlightScheduler"));
         btnPassenger.addActionListener(e -> cardLayout.show(mainPanel, "Passenger"));
         btnLaunchTV.addActionListener(e -> new PublicDisplayBoardFrame().setVisible(true));
+        btnAccounts.addActionListener(e -> cardLayout.show(mainPanel, "Account"));
         btnUsers.addActionListener(e -> cardLayout.show(mainPanel, "Users"));
         btnLogout.addActionListener(e -> logout());
 
@@ -181,6 +186,19 @@ public class MainFrame extends JFrame {
         sidebar.setVisible(false);
         cardLayout.show(mainPanel, "TicketStatus");
     }
+    
+
+    public void setNavigationEnabled(boolean enabled) {
+        btnDash.setEnabled(enabled);
+        btnStaff.setEnabled(enabled);
+        btnBoarding.setEnabled(enabled);
+        btnMonitor.setEnabled(enabled);
+        btnFlights.setEnabled(enabled);
+        btnPassenger.setEnabled(enabled);
+        btnAccounts.setEnabled(enabled);
+        btnUsers.setEnabled(enabled);
+        btnLogout.setEnabled(enabled);
+    }
 
     public void loginSuccess(String role, String username) {
         this.currentRole = role;
@@ -201,7 +219,16 @@ public class MainFrame extends JFrame {
        
         revalidate();
         repaint();
+
+        Component[] comps = mainPanel.getComponents();
+        for (Component c : comps) {
+            if (c instanceof AccountPanel) {
+                ((AccountPanel) c).setUser(username, role);
+                break;
+            }
+        }
     }
+
 
     private void applyRoleSidebar(String role) {
         btnDash.setVisible(true);

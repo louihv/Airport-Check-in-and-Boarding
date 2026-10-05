@@ -101,7 +101,10 @@ public class LoginPanel extends JPanel {
         btnLogin.setOpaque(false);
         btnLogin.setBorder(new RoundedOutlineBorder(1.2f, MainFrame.NAV_BTN_BG, 25));
         SwingUtilities.invokeLater(() -> {
-            getRootPane().setDefaultButton(btnLogin);
+            JRootPane root = getRootPane();
+            if (root != null) {
+                root.setDefaultButton(btnLogin);
+            }
         });
         
         btnLogin.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -180,6 +183,7 @@ public class LoginPanel extends JPanel {
         add(centerWrapper, BorderLayout.CENTER);
     }
 
+    
 
     private JButton createBackButton(String iconPath) {
         JButton btn = new JButton();
