@@ -479,6 +479,28 @@ public class FirebaseHelper {
         return passenger;
     }
 
+    public static java.util.Map<String, String> getCustomerByEmail(String email) throws Exception {
+        if (email == null || email.trim().isEmpty()) {
+            return null;
+        }
+
+        String path = "customers/" + email.trim().replace(".", "_");
+        String data = get(path);
+
+        if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) {
+            return null;
+        }
+
+        java.util.Map<String, String> customer = new java.util.HashMap<>();
+        customer.put("fullName",  nullToEmpty(extractJsonString(data, "fullName")));
+        customer.put("email",     nullToEmpty(extractJsonString(data, "email")));
+        customer.put("phone",     nullToEmpty(extractJsonString(data, "phone")));
+        customer.put("password",  nullToEmpty(extractJsonString(data, "password")));
+        customer.put("createdAt", nullToEmpty(extractJsonString(data, "createdAt")));
+
+        return customer;
+    }
+
     private static int findMatchingBrace(String s, int openPos) {
         int depth = 0;
         for (int i = openPos; i < s.length(); i++) {

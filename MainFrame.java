@@ -131,6 +131,7 @@ public class MainFrame extends JFrame {
         mainPanel.add(new PassengerMenuPanel(this), "PassengerMenu");
         mainPanel.add(new LoginPanel(this), "Login");
         mainPanel.add(new DashboardPanel(), "Dashboard");
+        mainPanel.add(new CustomerRegistrationPanel(this), "CustomerRegistration");
         mainPanel.add(new CheckInPanel(this), "CheckIn");
         mainPanel.add(new TicketStatusPanel(this), "TicketStatus");
         mainPanel.add(new CounterStaffPanel(this), "Staff");
@@ -173,6 +174,11 @@ public class MainFrame extends JFrame {
     public void showLogin() {
         sidebar.setVisible(false);
         cardLayout.show(mainPanel, "Login");
+    }
+
+    public void showCustomerRegistration() {
+        sidebar.setVisible(false);
+        cardLayout.show(mainPanel, "CustomerRegistration");
     }
 
     public void showCheckIn() {

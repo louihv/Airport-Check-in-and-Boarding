@@ -54,21 +54,26 @@ public class PassengerMenuPanel extends JPanel {
         start.setForeground(MainFrame.NAV_BTN_BG);
         start.setAlignmentX(Component.LEFT_ALIGNMENT);
 
+        JButton btnRegistration = createOutlineButton("Registration");
         JButton btnCheckIn = createOutlineButton("Check-In");
-        JButton btnBaggage = createOutlineButton("Baggage");
+        // JButton btnBaggage = createOutlineButton("Baggage");
         JButton btnTicket  = createOutlineButton("Ticket Status");
+        btnRegistration.setAlignmentX(Component.LEFT_ALIGNMENT);
         btnCheckIn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        btnBaggage.setAlignmentX(Component.LEFT_ALIGNMENT);
+        // btnBaggage.setAlignmentX(Component.LEFT_ALIGNMENT);
         btnTicket.setAlignmentX(Component.LEFT_ALIGNMENT);
 
+        btnRegistration.addActionListener(e -> mainFrame.showCustomerRegistration());
         btnCheckIn.addActionListener(e -> mainFrame.showCheckIn());
-        btnBaggage.addActionListener(e -> mainFrame.showBaggage());
+        // btnBaggage.addActionListener(e -> mainFrame.showBaggage());
         btnTicket.addActionListener(e -> mainFrame.showTicketStatus());
 
         rightPanel.add(start);
-        rightPanel.add(btnCheckIn);
         rightPanel.add(Box.createVerticalStrut(13));
-        rightPanel.add(btnBaggage);
+        rightPanel.add(btnRegistration);
+        rightPanel.add(Box.createVerticalStrut(13));
+        rightPanel.add(btnCheckIn);
+        // rightPanel.add(btnBaggage);
         rightPanel.add(Box.createVerticalStrut(13));
         rightPanel.add(btnTicket);
 

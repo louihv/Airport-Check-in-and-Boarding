@@ -96,7 +96,7 @@ public class AccountPanel extends JPanel {
 
         form.add(createReadOnlyBlock("Username", lblUsername));
         form.add(Box.createVerticalStrut(14));
-        form.add(createReadOnlyBlock("Role", lblRole));
+        form.add(createReadOnlyBlock("Role", lblRole));                                                                         
         form.add(Box.createVerticalStrut(14));
         form.add(createReadOnlyBlock("Counter", lblCounter));
         form.add(Box.createVerticalStrut(14));
