@@ -37,7 +37,7 @@ public class CustomerRegistrationPanel extends JPanel {
         topBar.setOpaque(false);
 
         JButton backButton = createBackButton("/resources/back.png");
-        backButton.addActionListener(e -> mainFrame.showPanel("Role"));
+        backButton.addActionListener(e -> mainFrame.showPanel("PassengerMenu"));
         topBar.add(backButton);
         add(topBar, BorderLayout.NORTH);
 
@@ -50,7 +50,7 @@ public class CustomerRegistrationPanel extends JPanel {
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(8, 10, 8, 10);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.fill = GridBagConstraints.HORIZONTAL; 
         gbc.gridx = 0;
         gbc.gridwidth = 1;
         gbc.weightx = 1.0;

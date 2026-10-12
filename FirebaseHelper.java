@@ -155,11 +155,116 @@ public class FirebaseHelper {
         for (String r : roles) {
             String data = get("users/" + r + "/" + username);
             if (data != null && !data.equals("null") && !data.isEmpty()) {
+                String counterStr = extractJsonString(data, "counter");
+                try {
+                    int c = Integer.parseInt(counterStr == null ? "" : counterStr.trim());
+                    if (c > 0) releaseCounter(c);
+                } catch (NumberFormatException ignored) {}
+
                 put("users/" + r + "/" + username + "/status", "\"Offline\"");
                 put("users/" + r + "/" + username + "/counter", "\"\"");
                 return;
             }
         }
+    }
+
+    private static int counterOf(Map<String, String> t) {
+        try { return Integer.parseInt(t.get("counter")); } catch (Exception e) { return 0; }
+    }
+
+    public static List<Map<String, String>> getUnassignedWaiting() throws Exception {
+        List<Map<String, String>> out = new ArrayList<>();
+        for (Map<String, String> t : getWaitingTickets()) if (counterOf(t) == 0) out.add(t);
+        return out;
+    }
+
+    public static List<Map<String, String>> getReservedFor(int counter) throws Exception {
+        List<Map<String, String>> out = new ArrayList<>();
+        for (Map<String, String> t : getWaitingTickets()) if (counterOf(t) == counter) out.add(t);
+        return out;
+    }
+
+    public static synchronized Map<String, String> reserveNext(int counter) throws Exception {
+        List<Map<String, String>> mine = getReservedFor(counter);
+        if (!mine.isEmpty()) return mine.get(0);
+
+        List<Map<String, String>> pool = getUnassignedWaiting();
+        if (pool.isEmpty()) return null;
+
+        Map<String, String> t = pool.get(0);
+        put("pendingTickets/" + t.get("ticketNo") + "/counter", String.valueOf(counter));
+        t.put("counter", String.valueOf(counter));
+        return t;
+    }
+
+    public static synchronized Map<String, String> claimNext(int counter, String user) throws Exception {
+        List<Map<String, String>> mine = getReservedFor(counter);
+        Map<String, String> t;
+        if (!mine.isEmpty()) {
+            t = mine.get(0);
+        } else {
+            List<Map<String, String>> pool = getUnassignedWaiting();
+            if (pool.isEmpty()) return null;
+            t = pool.get(0);
+        }
+        updateTicketStatus(t.get("ticketNo"), "SERVING", counter, user);
+        t.put("status", "SERVING");
+        t.put("counter", String.valueOf(counter));
+        reserveNext(counter);
+        return t;
+    }
+
+    public static synchronized void releaseCounter(int counter) throws Exception {
+        for (Map<String, String> t : getAllPendingTickets()) {
+            if (counterOf(t) != counter) continue;
+            String s = t.get("status") == null ? "" : t.get("status").toUpperCase();
+            boolean waiting = s.isEmpty() || s.equals("WAITING") || s.equals("PENDING") || s.equals("CHECKED_IN");
+            if (s.equals("SERVING") || waiting) {
+                String base = "pendingTickets/" + t.get("ticketNo");
+                put(base + "/status", "\"WAITING\"");
+                put(base + "/counter", "0");
+                delete(base + "/servedBy");
+            }
+        }
+    }
+
+    public static String getCounterOwner(int counter) throws Exception {
+        String wanted = String.valueOf(counter);
+        String[] roles = {"staff", "admin"};
+
+        for (String role : roles) {
+            String data = get("users/" + role);
+            if (data == null || data.equals("null") || data.trim().isEmpty() || data.equals("{}")) continue;
+
+            Matcher keyMatcher = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\\{").matcher(data);
+            while (keyMatcher.find()) {
+                String usernameKey = keyMatcher.group(1);
+                int start = keyMatcher.end() - 1;
+                int end = findMatchingBrace(data, start);
+                if (end == -1) continue;
+
+                String obj = data.substring(start, end + 1);
+                String status = nullToEmpty(extractJsonString(obj, "status"));
+                String userCounter = nullToEmpty(extractJsonString(obj, "counter")).trim();
+
+                if ("Online".equalsIgnoreCase(status) && userCounter.equals(wanted)) {
+                    String username = extractJsonString(obj, "username");
+                    return (username == null || username.isEmpty()) ? usernameKey : username;
+                }
+            }
+        }
+        return null;
+    }
+
+    public static int countCompletedToday() throws Exception {
+        String today = java.time.LocalDate.now().toString();
+        int n = 0;
+        for (Map<String, String> t : getAllCompletedTickets()) {
+            String ts = t.get("completedAt");
+            if (ts == null || ts.isEmpty()) ts = t.get("checkInTime");
+            if (ts != null && ts.startsWith(today)) n++;
+        }
+        return n;
     }
 
     public static void saveBaggage(String bookingRef, String tagNo, double weight, String status) throws Exception {
@@ -216,21 +321,12 @@ public class FirebaseHelper {
         String json = String.format(
             "{\"ticketNo\":\"%s\",\"bookingRef\":\"%s\",\"name\":\"%s\",\"flightNo\":\"%s\"," +
             "\"baggage\":\"%s\",\"status\":\"%s\",\"counter\":%d,\"checkInTime\":\"%s\",\"cabin\":\"%s\"}",
-            p.getTicketNumber(),
-            p.getBookingRef(),
-            p.getName(),
-            p.getFlightNumber(),
-            p.getBaggageInfo(),
-            p.getStatus(),
-            p.getAssignedCounter(),
+            p.getTicketNumber(), p.getBookingRef(), p.getName(), p.getFlightNumber(),
+            p.getBaggageInfo(), "WAITING", 0,             
             p.getCheckInTime().toString(),
             p.getCabin() == null ? "Economy" : p.getCabin()
         );
         put("pendingTickets/" + p.getTicketNumber(), json);
-    }
-
-    public static void updateTicketStatus(String ticketNo, String status, int counter) throws Exception {
-        updateTicketStatus(ticketNo, status, counter, null);
     }
 
     public static void updateTicketStatus(String ticketNo, String status, int counter, String servedBy) throws Exception {
@@ -252,11 +348,11 @@ public class FirebaseHelper {
 
     public static void moveTicketToCompleted(String ticketNo) throws Exception {
         if (ticketNo == null || ticketNo.trim().isEmpty()) return;
-
         String data = get("pendingTickets/" + ticketNo);
         if (data == null || data.equals("null") || data.trim().isEmpty()) return;
 
         put("tickets/" + ticketNo, data);
+        put("tickets/" + ticketNo + "/completedAt", "\"" + java.time.LocalDateTime.now() + "\"");
         delete("pendingTickets/" + ticketNo);
     }
 
@@ -287,6 +383,7 @@ public class FirebaseHelper {
             t.put("checkInTime",   nullToEmpty(extractJsonString(obj, "checkInTime")));
             t.put("cabin",         nullToEmpty(extractJsonString(obj, "cabin")));
             t.put("servedBy",      nullToEmpty(extractJsonString(obj, "servedBy")));
+            t.put("transferredFrom", nullToEmpty(extractJsonNumber(obj, "transferredFrom")));
 
             String counterStr = extractJsonNumber(obj, "counter");
             t.put("counter", counterStr != null ? counterStr : "0");
@@ -347,6 +444,7 @@ public class FirebaseHelper {
             t.put("checkInTime", nullToEmpty(extractJsonString(obj, "checkInTime")));
             t.put("cabin",       nullToEmpty(extractJsonString(obj, "cabin")));
             t.put("servedBy",    nullToEmpty(extractJsonString(obj, "servedBy")));
+            t.put("completedAt", nullToEmpty(extractJsonString(obj, "completedAt")));
 
             String counterStr = extractJsonNumber(obj, "counter");
             t.put("counter", counterStr != null ? counterStr : "0");

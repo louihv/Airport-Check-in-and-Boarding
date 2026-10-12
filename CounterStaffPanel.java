@@ -5,6 +5,10 @@ import java.util.List;
 import java.util.Map;
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.JTableHeader;
 
 public class CounterStaffPanel extends JPanel {
     private JToggleButton[] counterButtons;
@@ -21,6 +25,8 @@ public class CounterStaffPanel extends JPanel {
     private JPanel boardingPassCard;
     private JPanel passengerContainer;
     private boolean isAnimating = false;
+    private DefaultTableModel pendingModel;
+    private boolean revertingSelection = false;
 
     public CounterStaffPanel(MainFrame frame) {
         this.mainFrame = frame;
@@ -40,15 +46,34 @@ public class CounterStaffPanel extends JPanel {
         topBar.add(createCounterSelector());
         topBar.add(btnRefresh);
 
-        JPanel centerStack = new JPanel();
+        ScrollableStack centerStack = new ScrollableStack();
         centerStack.setLayout(new BoxLayout(centerStack, BoxLayout.Y_AXIS));
         centerStack.setOpaque(false);
         centerStack.add(createPassengerPanel());
         centerStack.add(Box.createVerticalStrut(12));
         centerStack.add(createControlPanel());
+        centerStack.add(Box.createVerticalStrut(12));
+        centerStack.add(createPendingPanel());
+
+        JScrollPane mainScroll = new JScrollPane(centerStack);
+        mainScroll.setBorder(BorderFactory.createEmptyBorder());
+        mainScroll.setOpaque(false);
+        mainScroll.getViewport().setOpaque(true);
+        mainScroll.getViewport().setBackground(MainFrame.MAIN_BG);
+        mainScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        mainScroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        mainScroll.getVerticalScrollBar().setUI(new ModernScrollBarUI());
+        mainScroll.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
+        mainScroll.getVerticalScrollBar().setUnitIncrement(16);
+
+        refreshTimer = new javax.swing.Timer(5000, e -> {
+            if (!isAnimating) { refreshNextTicket(); refreshStats(); }
+        });
+        refreshTimer.start();
+
 
         add(topBar, BorderLayout.NORTH);
-        add(centerStack, BorderLayout.CENTER);
+        add(mainScroll, BorderLayout.CENTER);
 
         SwingUtilities.invokeLater(() -> {
             clearDisplay();
@@ -60,7 +85,9 @@ public class CounterStaffPanel extends JPanel {
     private JPanel createPassengerPanel() {
         passengerContainer = new JPanel(new BorderLayout());
         passengerContainer.setOpaque(false);
-        passengerContainer.setPreferredSize(new Dimension(0, 220));
+        passengerContainer.setPreferredSize(new Dimension(0, 260));
+        passengerContainer.setMinimumSize(new Dimension(0, 260));
+        passengerContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 260));
 
         boardingPassCard = buildBoardingPassCard();
         passengerContainer.add(boardingPassCard, BorderLayout.CENTER);
@@ -128,17 +155,6 @@ public class CounterStaffPanel extends JPanel {
         body.add(leftCol);
         body.add(rightCol);
 
-        JScrollPane scroll = new JScrollPane(body);
-        scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        scroll.getViewport().setBackground(Color.WHITE);
-        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scroll.getVerticalScrollBar().setUI(new ModernScrollBarUI());
-        scroll.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
-        scroll.getVerticalScrollBar().setUnitIncrement(16);
-
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 6));
         footer.setOpaque(true);
         footer.setBackground(new Color(245, 248, 246));
@@ -149,7 +165,7 @@ public class CounterStaffPanel extends JPanel {
         footer.add(stub);
 
         card.add(header, BorderLayout.NORTH);
-        card.add(scroll, BorderLayout.CENTER);
+        card.add(body, BorderLayout.CENTER);
         card.add(footer, BorderLayout.SOUTH);
 
         return card;
@@ -323,6 +339,98 @@ public class CounterStaffPanel extends JPanel {
         return v;
     }
 
+    private JPanel createPendingPanel() {
+        RoundedPanel panel = new RoundedPanel(16, Color.WHITE);
+        panel.setLayout(new BorderLayout(0, 8));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedOutlineBorder(1, MainFrame.SECONDARY_BTN_BG, 16),
+                BorderFactory.createEmptyBorder(12, 14, 12, 14)));
+        panel.setPreferredSize(new Dimension(0, 280));
+
+        JLabel title = new JLabel("Pending Tickets");
+        title.setFont(AppFonts.bold(14));
+        title.setForeground(new Color(27, 77, 46));
+
+        pendingModel = new DefaultTableModel(
+                new String[]{"Ticket", "Passenger", "Flight", "Cabin", "Status", "Counter"}, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable table = new JTable(pendingModel);
+        styleTable(table);
+
+        JScrollPane sp = new JScrollPane(table);
+        sp.setBorder(BorderFactory.createEmptyBorder());
+        sp.getViewport().setBackground(Color.WHITE);
+        sp.getVerticalScrollBar().setUI(new ModernScrollBarUI());
+        sp.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
+
+        panel.add(title, BorderLayout.NORTH);
+        panel.add(sp, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void styleTable(JTable table) {
+        table.setRowHeight(42);
+        table.setFont(AppFonts.regular(13));
+        table.setShowVerticalLines(false);
+        table.setShowHorizontalLines(true);
+        table.setGridColor(new Color(230, 233, 238));
+        table.setIntercellSpacing(new Dimension(0, 1));
+        table.setFillsViewportHeight(true);
+        table.setSelectionBackground(new Color(245, 248, 250));
+        table.setSelectionForeground(new Color(40, 40, 40));
+        table.setBackground(Color.WHITE);
+
+        JTableHeader header = table.getTableHeader();
+        header.setReorderingAllowed(false);
+        header.setPreferredSize(new Dimension(0, 38));
+        header.setDefaultRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object value,
+                                                        boolean isSelected, boolean hasFocus,
+                                                        int row, int column) {
+                super.getTableCellRendererComponent(t, value, false, false, row, column);
+                setFont(AppFonts.bold(12));
+                setForeground(new Color(100, 115, 105));
+                setBackground(new Color(248, 250, 248));
+                setHorizontalAlignment(JLabel.LEFT);
+                setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 233, 238)),
+                        BorderFactory.createEmptyBorder(0, 18, 0, 18)));
+                return this;
+            }
+        });
+
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                                                        boolean isSelected, boolean hasFocus,
+                                                        int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setBorder(BorderFactory.createEmptyBorder(0, 18, 0, 18));
+                setHorizontalAlignment(JLabel.LEFT);
+
+                if (!isSelected) {
+                    setBackground(row % 2 == 0 ? Color.WHITE : new Color(250, 251, 252));
+                }
+
+                if (column == 4 && value != null) {    
+                    setFont(AppFonts.bold(12));
+                    switch (value.toString().toUpperCase()) {
+                        case "WAITING": setForeground(new Color(45, 190, 180)); break;
+                        case "ON_HOLD": setForeground(new Color(70, 130, 180)); break;
+                        case "SKIPPED": setForeground(new Color(245, 166, 35)); break;
+                        default:        setForeground(new Color(40, 40, 40));   break;
+                    }
+                } else {
+                    setFont(AppFonts.regular(13));
+                    setForeground(new Color(40, 40, 40));
+                }
+                return c;
+            }
+        });
+    }
+
     private JButton createOutlineButton(String text) {
         JButton btn = new JButton(text) {
             @Override
@@ -375,10 +483,20 @@ public class CounterStaffPanel extends JPanel {
     }
 
     public void resetCounter() {
+        final int prev = selectedCounter;
+
         currentTicketNo = null;
-        selectedCounter = 0;
+        selectedCounter = 0;  
         if (counterGroup != null) counterGroup.clearSelection();
         clearDisplay();
+        lblNextTicket.setText("---");
+
+        if (prev > 0) {
+            new Thread(() -> {
+                try { FirebaseHelper.releaseCounter(prev); }
+                catch (Exception ex) { ex.printStackTrace(); }
+            }).start();
+        }
     }
 
     private void loadCurrentServingTicket() {
@@ -416,38 +534,21 @@ public class CounterStaffPanel extends JPanel {
 
     private void autoCallFirstPassenger() {
         if (currentTicketNo != null || selectedCounter == 0) return;
-
         final String user = currentUser();
+        final int counter = selectedCounter;
 
         new SwingWorker<Map<String, String>, Void>() {
-            @Override
-            protected Map<String, String> doInBackground() throws Exception {
-                List<Map<String, String>> waiting = FirebaseHelper.getWaitingTickets();
-                if (waiting == null || waiting.isEmpty()) return null;
-                return waiting.get(0);
+            @Override protected Map<String, String> doInBackground() throws Exception {
+                return FirebaseHelper.claimNext(counter, user);
             }
-
-            @Override
-            protected void done() {
+            @Override protected void done() {
                 try {
                     Map<String, String> next = get();
-                    if (next == null) {
-                        clearDisplay();
-                        refreshNextTicket();
-                        refreshStats();
-                        return;
-                    }
-                    int counter = selectedCounter;
-                    String ticketNo = next.get("ticketNo");
-                    FirebaseHelper.updateTicketStatus(ticketNo, "SERVING", counter, user);
-                    currentTicketNo = ticketNo;
-                    updateLabels(next);
+                    if (next == null) { clearDisplay(); }
+                    else { currentTicketNo = next.get("ticketNo"); updateLabels(next); }
                     refreshNextTicket();
                     refreshStats();
-                } catch (Exception ex) {
-                    clearDisplay();
-                    ex.printStackTrace();
-                }
+                } catch (Exception ex) { clearDisplay(); ex.printStackTrace(); }
             }
         }.execute();
     }
@@ -487,35 +588,25 @@ public class CounterStaffPanel extends JPanel {
             return;
         }
 
-        int counter = selectedCounter;
+        final int counter = selectedCounter;
         new SwingWorker<Map<String, String>, Void>() {
-            @Override
-            protected Map<String, String> doInBackground() throws Exception {
-                List<Map<String, String>> waiting = FirebaseHelper.getWaitingTickets();
-                if (waiting == null || waiting.isEmpty()) return null;
-                return waiting.get(0);
+            @Override protected Map<String, String> doInBackground() throws Exception {
+                return FirebaseHelper.claimNext(counter, user);
             }
-
-            @Override
-            protected void done() {
+            @Override protected void done() {
                 try {
                     Map<String, String> next = get();
                     if (next == null) {
                         showModernMessage("No more passengers waiting in the queue.", "Queue Empty", false);
                         clearDisplay();
-                        refreshNextTicket();
-                        refreshStats();
-                        return;
+                    } else {
+                        currentTicketNo = next.get("ticketNo");
+                        updateLabels(next);
                     }
-                    String ticketNo = next.get("ticketNo");
-                    FirebaseHelper.updateTicketStatus(ticketNo, "SERVING", counter, user);
-                    currentTicketNo = ticketNo;
-                    updateLabels(next);
                     refreshNextTicket();
                     refreshStats();
                 } catch (Exception ex) {
                     showModernMessage("Failed to call next passenger.\n" + ex.getMessage(), "Error", true);
-                    ex.printStackTrace();
                 }
             }
         }.execute();
@@ -581,6 +672,7 @@ public class CounterStaffPanel extends JPanel {
             @Override
             protected Void doInBackground() throws Exception {
                 FirebaseHelper.updateTicketStatus(ticket, "WAITING", targetCounter, "");
+                FirebaseHelper.put("pendingTickets/" + ticket + "/transferredFrom", String.valueOf(currentCounter));
                 return null;
             }
 
@@ -609,45 +701,95 @@ public class CounterStaffPanel extends JPanel {
             }
         });
 
-        counterGroup = new ButtonGroup();
+        counterGroup = new ButtonGroup(); 
         counterButtons = new JToggleButton[4];
 
         for (int i = 0; i < 4; i++) {
             final int counter = i + 1;
-            JToggleButton btn = new JToggleButton(String.valueOf(counter));
+            JToggleButton btn = new JToggleButton(String.valueOf(counter)) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    if (isSelected()) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2.setColor(MainFrame.NAV_BTN_BG);
+                        g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+                        g2.dispose();
+                    }
+                    super.paintComponent(g);
+                }
+            };
             btn.setFont(AppFonts.bold(13));
             btn.setFocusPainted(false);
             btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
             btn.setPreferredSize(new Dimension(44, 32));
             btn.setBorder(BorderFactory.createEmptyBorder());
             btn.setContentAreaFilled(false);
-            btn.setBackground(null);
             btn.setOpaque(false);
             btn.setForeground(MainFrame.NAV_BTN_BG);
 
             btn.addItemListener(e -> {
-                if (btn.isSelected()) {
-                    btn.setBackground(new Color(46, 160, 90));
-                    btn.setForeground(Color.WHITE);
-                    btn.setOpaque(true);
-                    selectedCounter = counter;
-                    currentTicketNo = null;
-                    updateOnlineStatus();
-                    loadCurrentServingTicket();
-                } else {
-                    btn.setBackground(null);
-                    btn.setForeground(new Color(27, 77, 46));
-                    btn.setOpaque(false);
-                    btn.setContentAreaFilled(false);
-                }
+                boolean sel = btn.isSelected();
+                btn.setForeground(sel ? Color.WHITE : MainFrame.NAV_BTN_BG);
+                btn.repaint();
+                if (!sel || revertingSelection || counter == selectedCounter) return;
+
+                final int prev = selectedCounter;
+                final String user = currentUser();
+
+                new SwingWorker<String, Void>() {
+                    @Override protected String doInBackground() throws Exception {
+                        return FirebaseHelper.getCounterOwner(counter); 
+                    }
+                    @Override protected void done() {
+                        try {
+                            String owner = get();
+                            if (owner != null && !owner.isEmpty() && !owner.equals(user)) {
+                                revertSelection(prev);
+                                showModernMessage("Counter " + counter + " is already in use by "
+                                        + owner + ".", "Counter Unavailable", true);
+                                return;
+                            }
+                            applyCounterSelection(prev, counter);
+                        } catch (Exception ex) {
+                            revertSelection(prev);
+                            showModernMessage("Could not check the counter.\n" + ex.getMessage(), "Error", true);
+                        }
+                    }
+                }.execute();
             });
 
             counterGroup.add(btn);
             counterButtons[i] = btn;
             strip.add(btn);
         }
-
         return strip;
+    }
+
+    private void revertSelection(int prev) {
+        revertingSelection = true;
+        try {
+            if (prev > 0) counterButtons[prev - 1].setSelected(true);
+            else counterGroup.clearSelection();
+        } finally {
+            revertingSelection = false;
+        }
+    }
+
+    private void applyCounterSelection(int prev, int counter) {
+        selectedCounter = counter;
+        currentTicketNo = null;
+        clearDisplay();
+        updateOnlineStatus();
+
+        if (prev > 0 && prev != counter) {
+            new Thread(() -> {
+                try { FirebaseHelper.releaseCounter(prev); } catch (Exception ex) { ex.printStackTrace(); }
+                SwingUtilities.invokeLater(this::loadCurrentServingTicket);
+            }).start();
+        } else {
+            loadCurrentServingTicket();
+        }
     }
 
     private void showModernMessage(String message, String title, boolean isError) {
@@ -847,50 +989,64 @@ public class CounterStaffPanel extends JPanel {
     }
 
     private void refreshNextTicket() {
+        final int counter = selectedCounter;
         new SwingWorker<Map<String, String>, Void>() {
-            @Override
-            protected Map<String, String> doInBackground() throws Exception {
-                List<Map<String, String>> waiting = FirebaseHelper.getWaitingTickets();
-                if (waiting == null || waiting.isEmpty()) return null;
-                return waiting.get(0);
+            @Override protected Map<String, String> doInBackground() throws Exception {
+                if (counter == 0) return null;         
+                return FirebaseHelper.reserveNext(counter);
             }
-
-            @Override
-            protected void done() {
+            @Override protected void done() {
                 try {
                     Map<String, String> next = get();
                     lblNextTicket.setText(next != null ? next.get("ticketNo") : "---");
-                } catch (Exception ex) {
-                    lblNextTicket.setText("---");
-                }
+                } catch (Exception ex) { lblNextTicket.setText("---"); }
             }
         }.execute();
     }
 
     private void refreshStats() {
-        new SwingWorker<int[], Void>() {
-            @Override
-            protected int[] doInBackground() throws Exception {
-                return new int[]{
-                        FirebaseHelper.countByStatus("COMPLETED"),
-                        FirebaseHelper.countWaitingTickets(),
-                        FirebaseHelper.countWaitingTickets(),
-                        FirebaseHelper.countByStatus("SKIPPED"),
-                        FirebaseHelper.countByStatus("TRANSFERRED"),
-                        FirebaseHelper.countByStatus("ON_HOLD")
-                };
+        new SwingWorker<Object[], Void>() {
+            @Override protected Object[] doInBackground() throws Exception {
+                List<Map<String, String>> pending = FirebaseHelper.getAllPendingTickets();
+                int waiting = 0, serving = 0, skipped = 0, hold = 0, transferred = 0;
+                for (Map<String, String> t : pending) {
+                    String s = nullToEmpty(t.get("status")).toUpperCase();
+                    switch (s) {
+                        case "SERVING":  serving++; break;
+                        case "SKIPPED":  skipped++; break;
+                        case "ON_HOLD":  hold++; break;
+                        default:         waiting++; break;   
+                    }
+                    if (!nullToEmpty(t.get("transferredFrom")).isEmpty()) transferred++;
+                }
+                int done = FirebaseHelper.countCompletedToday();
+                int[] counts = {done, waiting + serving, waiting, skipped, transferred, hold};
+                return new Object[]{counts, pending};
             }
 
-            @Override
+            @Override @SuppressWarnings("unchecked")
             protected void done() {
                 try {
-                    int[] c = get();
+                    Object[] res = get();
+                    int[] c = (int[]) res[0];
                     lblDone.setText(String.valueOf(c[0]));
                     lblRemaining.setText(String.valueOf(c[1]));
                     lblUpcoming.setText(String.valueOf(c[2]));
                     lblSkipped.setText(String.valueOf(c[3]));
                     lblTransferred.setText(String.valueOf(c[4]));
                     lblOnHold.setText(String.valueOf(c[5]));
+
+                    pendingModel.setRowCount(0);
+                    for (Map<String, String> t : (List<Map<String, String>>) res[1]) {
+                        String s = nullToEmpty(t.get("status")).toUpperCase();
+                        if (s.equals("SERVING")) continue;   
+                        String cnt = nullToEmpty(t.get("counter"));
+                        pendingModel.addRow(new Object[]{
+                                t.get("ticketNo"), t.get("name"), t.get("flightNo"), t.get("cabin"),
+                                s.isEmpty() ? "WAITING" : s,
+                                (cnt.isEmpty() || cnt.equals("0")) ? "Unassigned" : "Counter " + cnt
+                        });
+                    }
                 } catch (Exception ignored) {}
             }
         }.execute();
@@ -1009,6 +1165,25 @@ public class CounterStaffPanel extends JPanel {
         @Override
         public Insets getBorderInsets(Component c) {
             return new Insets(8, 14, 8, 14);
+        }
+    }
+
+    private static class ScrollableStack extends JPanel implements Scrollable {
+        @Override public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+        @Override public int getScrollableUnitIncrement(Rectangle r, int orientation, int direction) {
+            return 16;
+        }
+        @Override public int getScrollableBlockIncrement(Rectangle r, int orientation, int direction) {
+            return orientation == SwingConstants.VERTICAL ? Math.max(16, r.height - 20) : r.width;
+        }
+        @Override public boolean getScrollableTracksViewportWidth() {
+            return true; 
+        }
+        @Override public boolean getScrollableTracksViewportHeight() {
+            return getParent() instanceof JViewport
+                    && getParent().getHeight() > getPreferredSize().height;
         }
     }
 

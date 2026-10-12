@@ -295,7 +295,7 @@ public class DashboardPanel extends JPanel {
 
             @Override
             protected Void doInBackground() throws Exception {
-                List<Map<String, String>> tickets = FirebaseHelper.getAllTickets();
+                List<Map<String, String>> tickets = FirebaseHelper.getAllPendingTickets();
                 totalTickets = tickets.size();
 
                 for (Map<String, String> t : tickets) {

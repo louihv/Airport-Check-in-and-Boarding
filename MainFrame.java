@@ -19,6 +19,9 @@ public class MainFrame extends JFrame {
     private AccountPanel accountPanel;
     private JLabel lblUsername;
     private JLabel lblRole;
+    private CounterStaffPanel staffPanel;
+    private boolean cleanedUp = false;
+
 
     public MainFrame() {
         // setTitle("Airport Queuing System");
@@ -28,6 +31,13 @@ public class MainFrame extends JFrame {
         setBackground(MAIN_BG);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowClosing(java.awt.event.WindowEvent e) {
+                cleanupOnExit();
+            }
+        });
+
+        Runtime.getRuntime().addShutdownHook(new Thread(this::cleanupOnExit)); 
 
         sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
@@ -131,10 +141,13 @@ public class MainFrame extends JFrame {
         mainPanel.add(new PassengerMenuPanel(this), "PassengerMenu");
         mainPanel.add(new LoginPanel(this), "Login");
         mainPanel.add(new DashboardPanel(), "Dashboard");
+        mainPanel.add(new PassengerDashboardPanel(this), "CheckInPassenger");
+        mainPanel.add(new CustomerLoginPanel(this), "CustomerLogin");
         mainPanel.add(new CustomerRegistrationPanel(this), "CustomerRegistration");
         mainPanel.add(new CheckInPanel(this), "CheckIn");
         mainPanel.add(new TicketStatusPanel(this), "TicketStatus");
-        mainPanel.add(new CounterStaffPanel(this), "Staff");
+        staffPanel = new CounterStaffPanel(this);
+        mainPanel.add(staffPanel, "Staff"); 
         mainPanel.add(new BoardingQueuePanel(this), "BoardingQueue");
         monitorPanel = new QueueMonitoringPanel();
         mainPanel.add(monitorPanel, "Monitor");
@@ -166,6 +179,11 @@ public class MainFrame extends JFrame {
         cardLayout.show(mainPanel, "Role");
     }
 
+    public void showCheckInPassenger() {
+        sidebar.setVisible(false);
+        cardLayout.show(mainPanel, "CheckIn");
+    }
+
     public void showPassengerMenu() {
         sidebar.setVisible(false);
         cardLayout.show(mainPanel, "PassengerMenu");
@@ -174,6 +192,11 @@ public class MainFrame extends JFrame {
     public void showLogin() {
         sidebar.setVisible(false);
         cardLayout.show(mainPanel, "Login");
+    }
+
+    public void showCustomerLogin() {
+        sidebar.setVisible(false);
+        cardLayout.show(mainPanel, "CustomerLogin");
     }
 
     public void showCustomerRegistration() {
@@ -232,6 +255,7 @@ public class MainFrame extends JFrame {
 
         revalidate();
         repaint();
+        cleanedUp = false;
     }
 
     private void applyRoleSidebar(String role) {
@@ -244,7 +268,6 @@ public class MainFrame extends JFrame {
         // btnReports.setVisible(true);
         btnUsers.setVisible(true);
         } else {
-        // STAFF
         // btnReports.setVisible(false);
         btnUsers.setVisible(false);
         }
@@ -258,28 +281,44 @@ public class MainFrame extends JFrame {
         return currentRole;
     }
 
-    public void logout() {
-        if (currentUsername != null) {
-            final String userToOffline = currentUsername;
-            new Thread(() -> {
-                try {
-                    FirebaseHelper.setOffline(userToOffline);
-                    System.out.println("Status set to Offline for: " + userToOffline);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }).start();
-        }
+    private void cleanupOnExit() {
+        if (cleanedUp) return;
+        final String user = currentUsername;
+        if (user == null) return;
+        cleanedUp = true;
 
-        currentRole = null;
-        currentUsername = null;
-        monitorPanel.clear();
-        lblUsername.setText("Username");
-        lblRole.setText("ADMIN");
-        sidebar.setVisible(false);
-        setNavigationEnabled(true);
-        cardLayout.show(mainPanel, "Role");
-        revalidate();
+        Thread t = new Thread(() -> {
+            try { FirebaseHelper.setOffline(user); }
+            catch (Exception ex) { ex.printStackTrace(); }
+        });
+        t.start();
+        try { t.join(4000); } catch (InterruptedException ignored) {}  
+    }
+
+    public void logout() {
+    if (staffPanel != null) staffPanel.resetCounter(); 
+
+    if (currentUsername != null) {
+        final String userToOffline = currentUsername;
+        new Thread(() -> {
+            try {
+                FirebaseHelper.setOffline(userToOffline);
+                System.out.println("Status set to Offline for: " + userToOffline);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    currentRole = null;
+    currentUsername = null;
+    monitorPanel.clear();
+    lblUsername.setText("Username");
+    lblRole.setText("ADMIN");
+    sidebar.setVisible(false);
+    setNavigationEnabled(true);
+    cardLayout.show(mainPanel, "Role");
+    revalidate();
         repaint();
     }
 
@@ -396,7 +435,6 @@ public class MainFrame extends JFrame {
                 + e.getMessage());
     }
 
-    // App name
     JLabel title = new JLabel("Orion Skyways");
 
     title.setFont(AppFonts.regular(13));
@@ -436,9 +474,8 @@ public class MainFrame extends JFrame {
         }
     });
 
-    // Close
     closeButton.addActionListener(e -> {
-
+        cleanupOnExit();
         dispose();
         System.exit(0);
 

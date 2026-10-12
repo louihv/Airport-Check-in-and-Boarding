@@ -1,4 +1,5 @@
 import java.awt.*;
+import java.awt.event.*;
 import java.awt.geom.RoundRectangle2D;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -7,11 +8,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.plaf.basic.BasicScrollBarUI;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -19,6 +22,7 @@ import javax.swing.table.DefaultTableModel;
 public class QueueMonitoringPanel extends JPanel {
     private static final String SERVED_BY_KEY = "servedBy";
 
+    private final List<Map<String, String>> allTickets = new ArrayList<>();
     private final List<Map<String, String>> visibleTickets = new ArrayList<>();
     private String staffId = "";
     private boolean admin;
@@ -27,13 +31,21 @@ public class QueueMonitoringPanel extends JPanel {
     private JButton btnRefresh;
     private JButton btnExport;
 
+    private JTextField searchField;
+    private JComboBox<String> statusFilter;
+    private JComboBox<String> counterFilter;
+    private JComboBox<String> servedByFilter;
+    private JPanel filterRow;
+    private JPanel headerPanel;
+    private String[] currentColumns;
+
     public QueueMonitoringPanel() {
         setLayout(new BorderLayout(0, 12));
         setBackground(MainFrame.MAIN_BG);
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        String[] columns = {"Ticket No.", "Booking Ref", "Name", "Flight", "Counter", "Status"};
-        tableModel = new DefaultTableModel(columns, 0) {
+        currentColumns = new String[]{"Ticket No.", "Booking Ref", "Name", "Flight", "Counter", "Status"};
+        tableModel = new DefaultTableModel(currentColumns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -56,27 +68,35 @@ public class QueueMonitoringPanel extends JPanel {
         outerCard.setOpaque(false);
         outerCard.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-        JPanel headerPanel = new JPanel(new GridLayout(1, columns.length, 0, 0)) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(MainFrame.MAIN_BG);
-                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 18, 18));
-                g2.dispose();
-            }
-        };
-        headerPanel.setOpaque(false);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(12, 18, 12, 18));
-        headerPanel.setPreferredSize(new Dimension(0, 46));
+        JPanel toolbar = new JPanel(new BorderLayout(12, 10));
+        toolbar.setOpaque(false);
+        toolbar.setBorder(BorderFactory.createEmptyBorder(0, 4, 4, 4));
 
-        for (String col : columns) {
-            JLabel lbl = new JLabel(col);
-            lbl.setForeground(MainFrame.SECONDARY_BTN_BG);
-            lbl.setFont(AppFonts.bold(12));
-            lbl.setHorizontalAlignment(SwingConstants.LEFT);
-            headerPanel.add(lbl);
-        }
+        JPanel searchPanel = createSearchPanel();
+        toolbar.add(searchPanel, BorderLayout.WEST);
+
+        filterRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        filterRow.setOpaque(false);
+
+        statusFilter = createFilterCombo("All Status");
+        counterFilter = createFilterCombo("All Counters");
+        servedByFilter = createFilterCombo("All Staff");
+
+        filterRow.add(createFilterLabel("Status"));
+        filterRow.add(statusFilter);
+        filterRow.add(createFilterLabel("Counter"));
+        filterRow.add(counterFilter);
+
+        toolbar.add(filterRow, BorderLayout.CENTER);
+
+        JButton btnClearFilters = createSmallOutlineButton("Clear");
+        btnClearFilters.addActionListener(e -> clearFilters());
+        JPanel clearWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        clearWrap.setOpaque(false);
+        clearWrap.add(btnClearFilters);
+        toolbar.add(clearWrap, BorderLayout.EAST);
+
+        headerPanel = createHeaderPanel(currentColumns);
 
         JPanel bodyCard = new JPanel(new BorderLayout()) {
             @Override
@@ -101,8 +121,13 @@ public class QueueMonitoringPanel extends JPanel {
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         bodyCard.add(scrollPane, BorderLayout.CENTER);
 
-        outerCard.add(headerPanel, BorderLayout.NORTH);
-        outerCard.add(bodyCard, BorderLayout.CENTER);
+        outerCard.add(toolbar, BorderLayout.NORTH);
+
+        JPanel tableSection = new JPanel(new BorderLayout(0, 0));
+        tableSection.setOpaque(false);
+        tableSection.add(headerPanel, BorderLayout.NORTH);
+        tableSection.add(bodyCard, BorderLayout.CENTER);
+        outerCard.add(tableSection, BorderLayout.CENTER);
 
         btnRefresh = createOutlineButton("Refresh Tickets");
         btnExport = createOutlineButton("Export PDF");
@@ -117,19 +142,302 @@ public class QueueMonitoringPanel extends JPanel {
 
         btnRefresh.addActionListener(e -> loadTickets());
         btnExport.addActionListener(e -> exportPdf());
+
+        statusFilter.addActionListener(e -> applyFilters());
+        counterFilter.addActionListener(e -> applyFilters());
+        servedByFilter.addActionListener(e -> applyFilters());
+    }
+
+    private JPanel createSearchPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 0)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(245, 247, 250));
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 12, 12));
+                g2.setColor(new Color(216, 203, 194));
+                g2.setStroke(new BasicStroke(1f));
+                g2.draw(new RoundRectangle2D.Float(0.5f, 0.5f, getWidth() - 1.5f, getHeight() - 1.5f, 12, 12));
+                g2.dispose();
+            }
+        };
+        panel.setOpaque(false);
+        panel.setPreferredSize(new Dimension(280, 38));
+        panel.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
+
+        JLabel icon = new JLabel("\uD83D\uDD0D"); // 🔍
+        icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+        icon.setForeground(new Color(140, 150, 160));
+        panel.add(icon, BorderLayout.WEST);
+
+        searchField = new JTextField() {
+            private final String placeholder = "Search ticket, name, flight...";
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (getText().isEmpty() && !isFocusOwner()) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(new Color(160, 170, 180));
+                    g2.setFont(AppFonts.regular(13));
+                    FontMetrics fm = g2.getFontMetrics();
+                    g2.drawString(placeholder, 2, (getHeight() + fm.getAscent() - fm.getDescent()) / 2);
+                    g2.dispose();
+                }
+            }
+        };
+        searchField.setOpaque(false);
+        searchField.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 4));
+        searchField.setFont(AppFonts.regular(13));
+        searchField.setForeground(new Color(40, 40, 40));
+        searchField.setCaretColor(MainFrame.NAV_BTN_BG);
+
+        searchField.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { applyFilters(); }
+            public void removeUpdate(DocumentEvent e) { applyFilters(); }
+            public void changedUpdate(DocumentEvent e) { applyFilters(); }
+        });
+
+        panel.add(searchField, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JLabel createFilterLabel(String text) {
+        JLabel lbl = new JLabel(text);
+        lbl.setFont(AppFonts.regular(12));
+        lbl.setForeground(new Color(120, 130, 140));
+        return lbl;
+    }
+
+    private JComboBox<String> createFilterCombo(String firstItem) {
+        JComboBox<String> combo = new JComboBox<>();
+        combo.setFont(AppFonts.regular(12));
+        combo.setPreferredSize(new Dimension(130, 34));
+        combo.setBackground(Color.WHITE);
+        combo.setFocusable(false);
+        combo.addItem(firstItem);
+        return combo;
+    }
+
+    private JButton createSmallOutlineButton(String text) {
+        JButton btn = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                if (getModel().isPressed()) {
+                    g.setColor(new Color(0, 0, 0, 30));
+                    g.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                } else if (getModel().isRollover()) {
+                    g.setColor(new Color(0, 0, 0, 15));
+                    g.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                }
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(AppFonts.bold(12));
+        btn.setContentAreaFilled(false);
+        btn.setOpaque(false);
+        btn.setForeground(MainFrame.NAV_BTN_BG);
+        btn.setFocusPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setBorder(new RoundedOutlineBorder(1, new Color(216, 203, 194), 10));
+        btn.setPreferredSize(new Dimension(70, 34));
+        return btn;
+    }
+
+    private JPanel createHeaderPanel(String[] columns) {
+        JPanel panel = new JPanel(new GridLayout(1, columns.length, 0, 0)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(MainFrame.MAIN_BG);
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 18, 18));
+                g2.dispose();
+            }
+        };
+        panel.setOpaque(false);
+        panel.setBorder(BorderFactory.createEmptyBorder(12, 18, 12, 18));
+        panel.setPreferredSize(new Dimension(0, 46));
+
+        for (String col : columns) {
+            JLabel lbl = new JLabel(col);
+            lbl.setForeground(MainFrame.SECONDARY_BTN_BG);
+            lbl.setFont(AppFonts.bold(12));
+            lbl.setHorizontalAlignment(SwingConstants.LEFT);
+            panel.add(lbl);
+        }
+        return panel;
+    }
+
+    private void rebuildTableForRole() {
+        currentColumns = admin
+                ? new String[]{"Ticket No.", "Booking Ref", "Name", "Flight", "Counter", "Status", "Served By"}
+                : new String[]{"Ticket No.", "Booking Ref", "Name", "Flight", "Counter", "Status"};
+
+        tableModel = new DefaultTableModel(currentColumns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        queueTable.setModel(tableModel);
+        styleTable(queueTable);
+
+        Container parent = headerPanel.getParent();
+        if (parent != null) {
+            parent.remove(headerPanel);
+            headerPanel = createHeaderPanel(currentColumns);
+            parent.add(headerPanel, BorderLayout.NORTH);
+            parent.revalidate();
+            parent.repaint();
+        }
+
+        filterRow.removeAll();
+        filterRow.add(createFilterLabel("Status"));
+        filterRow.add(statusFilter);
+        filterRow.add(createFilterLabel("Counter"));
+        filterRow.add(counterFilter);
+        if (admin) {
+            filterRow.add(createFilterLabel("Served By"));
+            filterRow.add(servedByFilter);
+        }
+        filterRow.revalidate();
+        filterRow.repaint();
     }
 
     public void setUser(String username, String role) {
         this.staffId = username == null ? "" : username.trim();
         this.admin = "ADMIN".equals(role);
+        rebuildTableForRole();
         loadTickets();
     }
 
     public void clear() {
         staffId = "";
         admin = false;
+        allTickets.clear();
         visibleTickets.clear();
         tableModel.setRowCount(0);
+        if (searchField != null) searchField.setText("");
+        clearFilters();
+    }
+
+    private void clearFilters() {
+        if (statusFilter != null) statusFilter.setSelectedIndex(0);
+        if (counterFilter != null) counterFilter.setSelectedIndex(0);
+        if (servedByFilter != null) servedByFilter.setSelectedIndex(0);
+        if (searchField != null) searchField.setText("");
+        applyFilters();
+    }
+
+    private void applyFilters() {
+        visibleTickets.clear();
+        tableModel.setRowCount(0);
+
+        String query = searchField != null ? searchField.getText().trim().toLowerCase() : "";
+        String statusSel = statusFilter != null && statusFilter.getSelectedItem() != null
+                ? statusFilter.getSelectedItem().toString() : "All Status";
+        String counterSel = counterFilter != null && counterFilter.getSelectedItem() != null
+                ? counterFilter.getSelectedItem().toString() : "All Counters";
+        String servedBySel = servedByFilter != null && servedByFilter.getSelectedItem() != null
+                ? servedByFilter.getSelectedItem().toString() : "All Staff";
+
+        for (Map<String, String> t : allTickets) {
+            if (!isServedByCurrentUser(t)) continue;
+
+            if (!"All Status".equals(statusSel)) {
+                String st = t.get("status");
+                if (st == null || !st.equalsIgnoreCase(statusSel)) continue;
+            }
+
+            if (!"All Counters".equals(counterSel)) {
+                String disp = counterDisplay(t);
+                if (!disp.equals(counterSel)) continue;
+            }
+
+            if (admin && !"All Staff".equals(servedBySel)) {
+                String sb = t.get(SERVED_BY_KEY);
+                if (sb == null || !sb.trim().equalsIgnoreCase(servedBySel)) continue;
+            }
+
+            if (!query.isEmpty()) {
+                String haystack = (
+                        nullToEmpty(t.get("ticketNo")) + " " +
+                        nullToEmpty(t.get("bookingRef")) + " " +
+                        nullToEmpty(t.get("name")) + " " +
+                        nullToEmpty(t.get("flightNo")) + " " +
+                        counterDisplay(t) + " " +
+                        nullToEmpty(t.get("status")) + " " +
+                        nullToEmpty(t.get(SERVED_BY_KEY))
+                ).toLowerCase();
+                if (!haystack.contains(query)) continue;
+            }
+
+            visibleTickets.add(t);
+            addRow(t);
+        }
+    }
+
+    private void addRow(Map<String, String> t) {
+        if (admin) {
+            tableModel.addRow(new Object[]{
+                    t.get("ticketNo"),
+                    t.get("bookingRef"),
+                    t.get("name"),
+                    t.get("flightNo"),
+                    counterDisplay(t),
+                    t.get("status"),
+                    nullToEmpty(t.get(SERVED_BY_KEY)).isEmpty() ? "—" : t.get(SERVED_BY_KEY)
+            });
+        } else {
+            tableModel.addRow(new Object[]{
+                    t.get("ticketNo"),
+                    t.get("bookingRef"),
+                    t.get("name"),
+                    t.get("flightNo"),
+                    counterDisplay(t),
+                    t.get("status")
+            });
+        }
+    }
+
+    private static String nullToEmpty(String s) {
+        return s == null ? "" : s;
+    }
+
+    private void populateFilterOptions() {
+        Set<String> statuses = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        Set<String> counters = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        Set<String> staff = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+
+        for (Map<String, String> t : allTickets) {
+            if (!isServedByCurrentUser(t)) continue;
+            String st = t.get("status");
+            if (st != null && !st.isEmpty()) statuses.add(st);
+            counters.add(counterDisplay(t));
+            String sb = t.get(SERVED_BY_KEY);
+            if (sb != null && !sb.trim().isEmpty()) staff.add(sb.trim());
+        }
+
+        Object prevStatus = statusFilter.getSelectedItem();
+        statusFilter.removeAllItems();
+        statusFilter.addItem("All Status");
+        for (String s : statuses) statusFilter.addItem(s);
+        if (prevStatus != null) statusFilter.setSelectedItem(prevStatus);
+
+        Object prevCounter = counterFilter.getSelectedItem();
+        counterFilter.removeAllItems();
+        counterFilter.addItem("All Counters");
+        for (String c : counters) counterFilter.addItem(c);
+        if (prevCounter != null) counterFilter.setSelectedItem(prevCounter);
+
+        Object prevServed = servedByFilter.getSelectedItem();
+        servedByFilter.removeAllItems();
+        servedByFilter.addItem("All Staff");
+        for (String s : staff) servedByFilter.addItem(s);
+        if (prevServed != null) servedByFilter.setSelectedItem(prevServed);
     }
 
     private JButton createOutlineButton(String text) {
@@ -186,7 +494,8 @@ public class QueueMonitoringPanel extends JPanel {
                     }
                 }
 
-                if (column == 5 && value != null) {
+                int statusCol = admin ? 5 : 5;
+                if (column == statusCol && value != null) {
                     String status = value.toString();
                     if ("Pending".equalsIgnoreCase(status) || "Waiting".equalsIgnoreCase(status)) {
                         setForeground(new Color(245, 166, 35));
@@ -374,23 +683,12 @@ public class QueueMonitoringPanel extends JPanel {
                 btnExport.setEnabled(true);
                 try {
                     List<Map<String, String>> tickets = get();
-                    tableModel.setRowCount(0);
-                    visibleTickets.clear();
-
+                    allTickets.clear();
                     if (tickets != null) {
-                        for (Map<String, String> t : tickets) {
-                            if (!isServedByCurrentUser(t)) continue;
-                            visibleTickets.add(t);
-                            tableModel.addRow(new Object[]{
-                                t.get("ticketNo"),
-                                t.get("bookingRef"),
-                                t.get("name"),
-                                t.get("flightNo"),
-                                counterDisplay(t),
-                                t.get("status")
-                            });
-                        }
+                        allTickets.addAll(tickets);
                     }
+                    populateFilterOptions();
+                    applyFilters();
                 } catch (Exception ex) {
                     showModernMessage(
                             "Failed to load tickets.\nCheck internet / Firebase URL.",
@@ -430,8 +728,15 @@ public class QueueMonitoringPanel extends JPanel {
         final int pageH = 595;
         final int margin = 40;
         final int rowH = 22;
-        final int[] colX = {40, 140, 260, 450, 560, 680};
-        final String[] headers = {"Ticket No.", "Booking Ref", "Name", "Flight", "Counter", "Status"};
+
+        final boolean showServedBy = admin;
+        final int[] colX = showServedBy
+                ? new int[]{40, 120, 230, 380, 480, 580, 680}
+                : new int[]{40, 140, 260, 450, 560, 680};
+        final String[] headers = showServedBy
+                ? new String[]{"Ticket No.", "Booking Ref", "Name", "Flight", "Counter", "Status", "Served By"}
+                : new String[]{"Ticket No.", "Booking Ref", "Name", "Flight", "Counter", "Status"};
+
         final int headerY = pageH - 105;
         final int rowsPerPage = (headerY - 30 - margin) / rowH;
         final int totalPages = (visibleTickets.size() + rowsPerPage - 1) / rowsPerPage;
@@ -456,10 +761,19 @@ public class QueueMonitoringPanel extends JPanel {
             int y = headerY - 6 - rowH + 6;
             for (int i = start; i < end; i++) {
                 Map<String, String> t = visibleTickets.get(i);
-                String[] cells = {
-                    t.get("ticketNo"), t.get("bookingRef"), t.get("name"),
-                    t.get("flightNo"), counterDisplay(t), t.get("status")
-                };
+                String[] cells;
+                if (showServedBy) {
+                    cells = new String[]{
+                            t.get("ticketNo"), t.get("bookingRef"), t.get("name"),
+                            t.get("flightNo"), counterDisplay(t), t.get("status"),
+                            nullToEmpty(t.get(SERVED_BY_KEY)).isEmpty() ? "—" : t.get(SERVED_BY_KEY)
+                    };
+                } else {
+                    cells = new String[]{
+                            t.get("ticketNo"), t.get("bookingRef"), t.get("name"),
+                            t.get("flightNo"), counterDisplay(t), t.get("status")
+                    };
+                }
                 for (int c = 0; c < cells.length; c++) {
                     int width = (c + 1 < colX.length ? colX[c + 1] : pageW - margin) - colX[c] - 8;
                     pdfText(sb, "F1", 10, colX[c], y, fit(cells[c], width / 5));

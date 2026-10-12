@@ -5,6 +5,7 @@ import javax.swing.*;
 import javax.swing.border.*;
 
 public class LoginPanel extends JPanel {
+    private static final char ECHO = '*';
 
     public LoginPanel(MainFrame frame) {
         setBackground(MainFrame.MAIN_BG);
@@ -310,7 +311,7 @@ public class LoginPanel extends JPanel {
             String text = new String(field.getPassword());
             if (text.equals(placeholder)) {
                 field.setText("");
-                field.setEchoChar('•');
+                field.setEchoChar(ECHO);  
                 field.setForeground(new Color(40, 55, 50));
             }
         }
@@ -379,7 +380,7 @@ private JPanel createPasswordFieldWithToggle(JPasswordField passField) {
             if (closedIcon != null) eyeBtn.setIcon(closedIcon);
             else eyeBtn.setText("🙈");
         } else {
-            passField.setEchoChar('•');
+            passField.setEchoChar(ECHO);
             if (openIcon != null) eyeBtn.setIcon(openIcon);
             else eyeBtn.setText("👁");
         }
