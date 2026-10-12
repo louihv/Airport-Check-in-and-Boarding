@@ -15,11 +15,22 @@ public class TicketStatusPanel extends JPanel {
     private JLabel lblTicketValue, lblStatusValue, lblPositionValue, lblEstWaitValue;
     private final MainFrame mainFrame;
     private BufferedImage backgroundImage;
+    private static final String searchPlaceholder = "Enter Ticket Number";
+
+
 
     private static final int AVG_SERVICE_MINUTES = 3;
 
     public TicketStatusPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
+
+        addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0
+                    && !isShowing()) {
+                resetDisplay();
+            }
+        });
+
 
         try {
             java.net.URL url = getClass().getResource("/resources/bg_passenger.jpg");
@@ -42,7 +53,10 @@ public class TicketStatusPanel extends JPanel {
         topBar.setOpaque(false);
 
         JButton backButton = createBackButton("/resources/back.png");
-        backButton.addActionListener(e -> mainFrame.showPanel("PassengerMenu"));
+        backButton.addActionListener(e -> {
+            resetDisplay();
+            mainFrame.showPanel("PassengerMenu");
+        });
         topBar.add(backButton);
         add(topBar, BorderLayout.NORTH);
 
@@ -221,8 +235,22 @@ public class TicketStatusPanel extends JPanel {
         btnSearch.addActionListener(e -> updateStatusDisplay());
         txtSearchTicket.addActionListener(e -> updateStatusDisplay());
 
-        SwingUtilities.invokeLater(this::updateStatusDisplay);
     }
+
+    @Override
+    public void addNotify() {        
+        super.addNotify();
+        Window w = SwingUtilities.getWindowAncestor(this);
+        if (w != null) {
+            w.addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowClosing(java.awt.event.WindowEvent e) {
+                    resetDisplay();
+                }
+            });
+        }
+    }
+
 
     @Override
     protected void paintComponent(Graphics g) {
@@ -305,13 +333,29 @@ public class TicketStatusPanel extends JPanel {
         dialog.setVisible(true);
     }
 
+    private void resetDisplay() {
+        txtSearchTicket.setText(searchPlaceholder);
+        txtSearchTicket.setForeground(MainFrame.SECONDARY_BTN_BG);
+        lblTicketValue.setText("--");
+        lblStatusValue.setText("--");
+        lblPositionValue.setText("--");
+        lblEstWaitValue.setText("--");
+    }
+
     private void updateStatusDisplay() {
+        
         lblTicketValue.setText("Loading...");
         lblStatusValue.setText("...");
         lblPositionValue.setText("...");
         lblEstWaitValue.setText("...");
 
         String searchTicket = getRealText(txtSearchTicket, "Enter Ticket Number");
+
+        if (searchTicket.isEmpty()) {
+            resetDisplay();
+            showModernMessage("Please enter a ticket number.", "Missing Ticket Number", true);
+            return;
+        }
 
         new SwingWorker<Void, Void>() {
             private Map<String, String> target;

@@ -18,6 +18,7 @@ import javax.swing.event.DocumentListener;
 import javax.swing.plaf.basic.BasicScrollBarUI;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.plaf.basic.BasicComboBoxUI;
 
 public class QueueMonitoringPanel extends JPanel {
     private static final String SERVED_BY_KEY = "servedBy";
@@ -146,6 +147,14 @@ public class QueueMonitoringPanel extends JPanel {
         statusFilter.addActionListener(e -> applyFilters());
         counterFilter.addActionListener(e -> applyFilters());
         servedByFilter.addActionListener(e -> applyFilters());
+
+        setFocusable(true);
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                requestFocusInWindow();
+            }
+        });
     }
 
     private JPanel createSearchPanel() {
@@ -194,6 +203,11 @@ public class QueueMonitoringPanel extends JPanel {
         searchField.setForeground(new Color(40, 40, 40));
         searchField.setCaretColor(MainFrame.NAV_BTN_BG);
 
+        searchField.addFocusListener(new FocusAdapter() {
+            @Override public void focusGained(FocusEvent e) { searchField.repaint(); }
+            @Override public void focusLost(FocusEvent e)   { searchField.repaint(); }
+        });
+
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { applyFilters(); }
             public void removeUpdate(DocumentEvent e) { applyFilters(); }
@@ -214,11 +228,122 @@ public class QueueMonitoringPanel extends JPanel {
     private JComboBox<String> createFilterCombo(String firstItem) {
         JComboBox<String> combo = new JComboBox<>();
         combo.setFont(AppFonts.regular(12));
-        combo.setPreferredSize(new Dimension(130, 34));
-        combo.setBackground(Color.WHITE);
-        combo.setFocusable(false);
+        combo.setOpaque(false);
+        combo.setBackground(new Color(0, 0, 0, 0));
+        combo.setForeground(new Color(40, 55, 50));
+        combo.setPreferredSize(new Dimension(140, 36));
+
+        combo.setUI(new ModernComboBoxUI());
+        combo.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedBorder(MainFrame.NAV_BTN_BG, 25, 1.2f),
+                BorderFactory.createEmptyBorder(5, 0, 5, 8)
+        ));
+
+        combo.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                                                        boolean isSelected, boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                label.setFont(AppFonts.regular(12));
+                label.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
+                label.setOpaque(true);
+                if (isSelected) {
+                    label.setBackground(MainFrame.NAV_BTN_BG);
+                    label.setForeground(Color.WHITE);
+                } else {
+                    label.setBackground(Color.WHITE);
+                    label.setForeground(new Color(40, 55, 50));
+                }
+                return label;
+            }
+        });
+
+        Object popup = combo.getUI().getAccessibleChild(combo, 0);
+        if (popup instanceof JPopupMenu) {
+            JPopupMenu popupMenu = (JPopupMenu) popup;
+            popupMenu.setBorder(BorderFactory.createLineBorder(MainFrame.NAV_BTN_BG, 1));
+            popupMenu.setBackground(Color.WHITE);
+            for (Component comp : popupMenu.getComponents()) {
+                if (comp instanceof JScrollPane) {
+                    JScrollPane sp = (JScrollPane) comp;
+                    sp.getViewport().setBackground(Color.WHITE);
+                    sp.setBackground(Color.WHITE);
+                    JList<?> list = (JList<?>) sp.getViewport().getView();
+                    if (list != null) {
+                        list.setBackground(Color.WHITE);
+                        list.setFixedCellHeight(38);
+                    }
+                }
+            }
+        }
+
         combo.addItem(firstItem);
         return combo;
+    }
+
+    private static class ModernComboBoxUI extends BasicComboBoxUI {
+        @Override
+        protected JButton createArrowButton() {
+            JButton button = new JButton() {
+                @Override
+                public void paint(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    int w = getWidth();
+                    int h = getHeight();
+                    g2.setColor(MainFrame.NAV_BTN_BG);
+                    int[] xPoints = {w / 2 - 4, w / 2 + 4, w / 2};
+                    int[] yPoints = {h / 2 - 2, h / 2 - 2, h / 2 + 3};
+                    g2.fillPolygon(xPoints, yPoints, 3);
+                    g2.dispose();
+                }
+
+                @Override
+                public Dimension getPreferredSize() {
+                    return new Dimension(28, 28);
+                }
+            };
+            button.setBorder(BorderFactory.createEmptyBorder());
+            button.setContentAreaFilled(false);
+            button.setFocusable(false);
+            return button;
+        }
+
+        @Override
+        public void paintCurrentValueBackground(Graphics g, Rectangle bounds, boolean hasFocus) {
+        }
+    }
+
+    private static class RoundedBorder implements javax.swing.border.Border {
+        private final Color color;
+        private final int radius;
+        private final float thickness;
+
+        public RoundedBorder(Color color, int radius, float thickness) {
+            this.color = color;
+            this.radius = radius;
+            this.thickness = thickness;
+        }
+
+        @Override
+        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(thickness));
+            g2.drawRoundRect(x + 1, y + 1, width - 3, height - 3, radius, radius);
+            g2.dispose();
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c) {
+            return new Insets(radius / 3, radius / 2, radius / 3, radius / 2);
+        }
+
+        @Override
+        public boolean isBorderOpaque() {
+            return false;
+        }
     }
 
     private JButton createSmallOutlineButton(String text) {
@@ -674,7 +799,29 @@ public class QueueMonitoringPanel extends JPanel {
         new SwingWorker<List<Map<String, String>>, Void>() {
             @Override
             protected List<Map<String, String>> doInBackground() throws Exception {
-                return FirebaseHelper.getAllTickets();
+                List<Map<String, String>> result = new ArrayList<>();
+
+                List<Map<String, String>> main = FirebaseHelper.getAllTickets();
+                if (main != null) {
+                    for (Map<String, String> t : main) {
+                        Map<String, String> copy = new HashMap<>(t);
+                        copy.put("source", "tickets");
+                        result.add(copy);
+                    }
+                }
+
+                if (admin) {
+                    List<Map<String, String>> pending = FirebaseHelper.getAllPendingTickets();
+                    if (pending != null) {
+                        for (Map<String, String> t : pending) {
+                            Map<String, String> copy = new HashMap<>(t);
+                            copy.put("source", "pendingTickets");
+                            copy.putIfAbsent("status", "Pending");
+                            result.add(copy);
+                        }
+                    }
+                }
+                return result;
             }
 
             @Override
@@ -859,4 +1006,6 @@ public class QueueMonitoringPanel extends JPanel {
         if (s == null) return "";
         return s.length() <= maxChars ? s : s.substring(0, Math.max(0, maxChars - 1)) + "...";
     }
+
+    
 }

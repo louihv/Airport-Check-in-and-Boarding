@@ -504,8 +504,7 @@ public class CheckInPanel extends JPanel {
             String tag = row.tagField.getText().trim();
 
             if (weightStr.isEmpty()) {
-                showModernMessage("Please enter weight for all luggage items.", "Error", true);
-                return;
+                continue;
             }
 
             double weight;
@@ -529,11 +528,6 @@ public class CheckInPanel extends JPanel {
             tags.add(tag);
         }
 
-        if (validBags.isEmpty()) {
-            showModernMessage("Add at least one luggage item.", "Error", true);
-            return;
-        }
-
         btnSubmit.setEnabled(false);
         lblStatus.setForeground(MainFrame.NAV_BTN_BG);
         lblStatus.setText("Processing...");
@@ -550,6 +544,28 @@ public class CheckInPanel extends JPanel {
                 String dbFlight = passengerData.getOrDefault("flightId", "").trim();
                 if (!dbName.equalsIgnoreCase(name) || !dbFlight.equalsIgnoreCase(flight)) {
                     return "MISMATCH";
+                }
+
+                java.util.List<java.util.Map<String, String>> existingTickets = FirebaseHelper.getAllTickets();
+                if (existingTickets != null) {
+                    for (java.util.Map<String, String> t : existingTickets) {
+                        if (ref.equalsIgnoreCase(t.get("bookingRef"))) {
+                            return "ALREADY_EXISTS";
+                        }
+                    }
+                }
+
+                try {
+                    java.util.List<java.util.Map<String, String>> pending =
+                            FirebaseHelper.getAllPendingTickets();
+                    if (pending != null) {
+                        for (java.util.Map<String, String> p : pending) {
+                            if (ref.equalsIgnoreCase(p.get("bookingRef"))) {
+                                return "ALREADY_EXISTS";
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {
                 }
 
                 StringBuilder combinedInfo = new StringBuilder();
@@ -576,17 +592,23 @@ public class CheckInPanel extends JPanel {
                     combinedInfo.append(String.format("%.1f kg | Tag: %s", weight, tag));
                 }
 
+                String baggageStr = combinedInfo.length() > 0 ? combinedInfo.toString() : "No baggage";
+
                 QueueManager qm = QueueManager.getInstance();
                 String ticketNo = qm.generateTicketNumber();
-                Passenger passenger = new Passenger(ref, name, flight, combinedInfo.toString(), ticketNo, cabin);
+                Passenger passenger = new Passenger(ref, name, flight, baggageStr, ticketNo, cabin);
                 passenger.setCabin(cabin);
-                qm.addPassenger(passenger);
+                qm.addPassenger(passenger);  
+                try {
+                    FirebaseHelper.put("pendingTickets/" + ticketNo + "/baggage", "\"" + baggageStr + "\"");
+                } catch (Exception ignored) {}
 
-                java.util.List<java.util.Map<String, String>> tickets = FirebaseHelper.getAllTickets();
-                for (java.util.Map<String, String> t : tickets) {
-                    if (ref.equalsIgnoreCase(t.get("bookingRef"))) {
-                        FirebaseHelper.put("tickets/" + t.get("ticketNo") + "/baggage", "\"" + combinedInfo.toString() + "\"");
-                        break;
+                if (existingTickets != null) {
+                    for (java.util.Map<String, String> t : existingTickets) {
+                        if (ref.equalsIgnoreCase(t.get("bookingRef"))) {
+                            FirebaseHelper.put("tickets/" + t.get("ticketNo") + "/baggage", "\"" + baggageStr + "\"");
+                            break;
+                        }
                     }
                 }
 
@@ -603,23 +625,30 @@ public class CheckInPanel extends JPanel {
                         lblStatus.setText("Passenger not found.");
                         showModernMessage(
                                 "Passenger not found or details do not match.\n"
-                              + "Please verify your booking reference, name and flight number.",
+                            + "Please verify your booking reference, name and flight number.",
                                 "Validation Failed", true);
                     } else if ("MISMATCH".equals(result)) {
                         lblStatus.setForeground(Color.RED);
                         lblStatus.setText("Details do not match.");
                         showModernMessage(
                                 "Passenger not found or details do not match.\n"
-                              + "Please verify your booking reference, name and flight number.",
+                            + "Please verify your booking reference, name and flight number.",
                                 "Validation Failed", true);
+                    } else if ("ALREADY_EXISTS".equals(result)) {
+                        lblStatus.setForeground(Color.RED);
+                        lblStatus.setText("Already checked in.");
+                        showModernMessage(
+                                "This booking reference is already in the queue or has a ticket.\n"
+                            + "Duplicate check-in is not allowed.",
+                                "Already Exists", true);
                     } else if (result.startsWith("EXCESS:")) {
                         String ticketNo = result.substring(7);
                         lblStatus.setForeground(Color.RED);
                         lblStatus.setText("Warning: Excess Baggage Fee Required");
                         showModernMessage(
                                 "Check-in successful!\nQueue Ticket Issued: " + ticketNo
-                              + "\nCabin: " + cabin
-                              + "\n\nOne or more bags exceed 23 kg.\nExcess baggage fee may apply.",
+                            + "\nCabin: " + cabin
+                            + "\n\nOne or more bags exceed 23 kg.\nExcess baggage fee may apply.",
                                 "Queue Ticket Generated", true);
                         resetForm();
                     } else if (result.startsWith("OK:")) {
@@ -628,8 +657,8 @@ public class CheckInPanel extends JPanel {
                         lblStatus.setText("Check-in & Baggage Verified Successfully!");
                         showModernMessage(
                                 "Check-in successful!\nQueue Ticket Issued: " + ticketNo
-                              + "\nCabin: " + cabin
-                              + "\nAll baggage items verified and tagged.",
+                            + "\nCabin: " + cabin
+                            + "\n" + (validBags.isEmpty() ? "No baggage declared." : "All baggage items verified and tagged."),
                                 "Queue Ticket Generated", false);
                         resetForm();
                     }
