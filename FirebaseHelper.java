@@ -1,7 +1,6 @@
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.*;
 import java.util.regex.*;
 
@@ -384,6 +383,23 @@ public class FirebaseHelper {
             t.put("cabin",         nullToEmpty(extractJsonString(obj, "cabin")));
             t.put("servedBy",      nullToEmpty(extractJsonString(obj, "servedBy")));
             t.put("transferredFrom", nullToEmpty(extractJsonNumber(obj, "transferredFrom")));
+            t.put("baggageTags",     nullToEmpty(extractJsonString(obj, "baggageTags")));
+            t.put("baggageTag",      nullToEmpty(extractJsonString(obj, "baggageTag")));
+            t.put("baggageWeights",  nullToEmpty(extractJsonString(obj, "baggageWeights")));
+            t.put("baggageWeight",   nullToEmpty(extractJsonString(obj, "baggageWeight")));
+            if (t.get("baggageWeight").isEmpty()) {
+                String num = extractJsonNumber(obj, "baggageWeight");
+                if (num != null) t.put("baggageWeight", num);
+            }
+            t.put("baggageDeclared", nullToEmpty(extractJsonString(obj, "baggageDeclared")));
+            t.put("baggageVerified", nullToEmpty(extractJsonString(obj, "baggageVerified")));
+            t.put("baggageAccepted", nullToEmpty(extractJsonString(obj, "baggageAccepted")));
+            t.put("baggageFlagged",  nullToEmpty(extractJsonString(obj, "baggageFlagged")));
+
+            String[] extra = {"baggagePieces", "baggageSpecial", "baggageConfirmedNone", "baggageFlagReason",
+                    "baggageFlaggedBy", "baggageAcceptedBy", "baggageWeight", "baggageWeights",
+                    "boarded", "boardedBy", "boardedTime", "boardedAt", "boardingGate", "seat"};
+            for (String k : extra) t.put(k, nullToEmpty(extractJsonValue(obj, k)));
 
             String counterStr = extractJsonNumber(obj, "counter");
             t.put("counter", counterStr != null ? counterStr : "0");
@@ -463,6 +479,25 @@ public class FirebaseHelper {
         return tickets;
     }
 
+    private static String extractJsonNumber(String json, String key) {
+        Pattern p = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*([0-9]+)");
+        Matcher m = p.matcher(json);
+        if (m.find()) {
+            return m.group(1);
+        }
+        return null;
+    }
+
+    private static String extractJsonValue(String json, String key) {
+        Pattern p = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|(-?\\d+(?:\\.\\d+)?)|(true|false))");
+        Matcher m = p.matcher(json);
+        if (!m.find()) return null;
+        if (m.group(1) != null) return m.group(1).replace("\\\"", "\"").replace("\\\\", "\\");
+        if (m.group(2) != null) return m.group(2);
+        return m.group(3);
+    }
+
+
     public static List<java.util.Map<String, String>> getAllFlights() throws Exception {
         List<java.util.Map<String, String>> flights = new ArrayList<>();
         String data = get("flights");
@@ -487,7 +522,9 @@ public class FirebaseHelper {
             f.put("destination",nullToEmpty(extractJsonString(obj, "destination")));
             f.put("departure",  nullToEmpty(extractJsonString(obj, "departure")));
             f.put("gate",       nullToEmpty(extractJsonString(obj, "gate")));
-
+            f.put("aircraft",     nullToEmpty(extractJsonString(obj, "aircraft")));
+            f.put("currentGroup", nullToEmpty(extractJsonNumber(obj, "currentGroup")));
+            
             flights.add(f);
         }
 
@@ -770,12 +807,4 @@ public class FirebaseHelper {
         return s == null ? "" : s;
     }
 
-    private static String extractJsonNumber(String json, String key) {
-        Pattern p = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*([0-9]+)");
-        Matcher m = p.matcher(json);
-        if (m.find()) {
-            return m.group(1);
-        }
-        return null;
-    }
 }   

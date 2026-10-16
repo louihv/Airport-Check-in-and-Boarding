@@ -82,7 +82,6 @@ public class PassengerDashboardPanel extends JPanel {
                 "Your loyalty program details will appear here.")));
         bar.add(links, BorderLayout.CENTER);
 
-        // right: user + logout
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 8));
         right.setOpaque(false);
         lblWelcome.setFont(AppFonts.regular(13));
@@ -116,7 +115,6 @@ public class PassengerDashboardPanel extends JPanel {
         return b;
     }
 
-    // --------------------------------------------------------------------- hero
     private JComponent buildHero() {
         JPanel hero = new JPanel(new GridBagLayout()) {
             @Override
@@ -183,7 +181,6 @@ public class PassengerDashboardPanel extends JPanel {
         card.setMaximumSize(new Dimension(860, 270));
         card.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // tabs
         JPanel tabs = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         tabs.setOpaque(false);
         String[] names = {"Book a Flight", "Manage Booking", "Check-in", "Flight Status"};
@@ -236,7 +233,6 @@ public class PassengerDashboardPanel extends JPanel {
         c.insets = new Insets(4, 6, 4, 6);
         c.weightx = 1;
 
-        // trip type
         rbRound = new JRadioButton("Round trip", true);
         rbOneWay = new JRadioButton("One way");
         for (JRadioButton rb : new JRadioButton[]{rbRound, rbOneWay}) {
@@ -334,7 +330,6 @@ public class PassengerDashboardPanel extends JPanel {
             info("Invalid Route", "Origin and destination must be different.");
             return;
         }
-        // TODO: pass these values to your flight-search / booking panel
         String msg = from + " -> " + to
                 + "\nDepart: " + txtDepart.getText().trim()
                 + (rbRound.isSelected() ? "\nReturn: " + txtReturn.getText().trim() : "")
@@ -343,7 +338,6 @@ public class PassengerDashboardPanel extends JPanel {
         info("Search Flights", msg);
     }
 
-    // ----------------------------------------------------------- quick services
     private JComponent buildQuickServices() {
         JPanel wrap = section("Quick services");
         JPanel row = new JPanel(new GridLayout(1, 4, 16, 0));
@@ -390,7 +384,6 @@ public class PassengerDashboardPanel extends JPanel {
         return t;
     }
 
-    // ------------------------------------------------------------------- promos
     private JComponent buildPromos() {
         JPanel wrap = section("Featured destinations");
         JPanel row = new JPanel(new GridLayout(1, 3, 16, 0));
@@ -451,7 +444,6 @@ public class PassengerDashboardPanel extends JPanel {
         return f;
     }
 
-    // ------------------------------------------------------------------ helpers
     private JPanel section(String title) {
         JPanel s = new JPanel(new BorderLayout(0, 12));
         s.setOpaque(false);

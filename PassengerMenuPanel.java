@@ -22,60 +22,61 @@ public class PassengerMenuPanel extends JPanel {
 
         add(topBar, BorderLayout.NORTH);
 
-        JPanel content = new JPanel(new GridLayout(1, 2, 500, 0)); 
-        content.setOpaque(false);
-        
-        content.setBorder(BorderFactory.createEmptyBorder(20, 60, 40, 0));
-
         JPanel leftPanel = new JPanel();
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
         leftPanel.setOpaque(false);
+        leftPanel.setBorder(BorderFactory.createEmptyBorder(20, 60, 20, 60));
 
-        JLabel welcome = new JLabel("Welcome");
-        welcome.setFont(AppFonts.bold(80));
+        JLabel welcome = new JLabel("Welcome to Orion Skyways");
+        welcome.setFont(AppFonts.bold(50));
         welcome.setForeground(MainFrame.NAV_BTN_BG);
         welcome.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         JLabel subtitle = new JLabel("Click an option below to begin.");
         subtitle.setFont(AppFonts.regular(20));
         subtitle.setForeground(MainFrame.SECONDARY_BTN_BG);
         subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         leftPanel.add(welcome);
+        leftPanel.add(Box.createVerticalStrut(10));
         leftPanel.add(subtitle);
-        leftPanel.add(Box.createVerticalGlue());
+
+        add(leftPanel, BorderLayout.CENTER);
+
+        JPanel bottomWrapper = new JPanel(new BorderLayout());
+        bottomWrapper.setOpaque(false);
+        bottomWrapper.setBorder(BorderFactory.createEmptyBorder(20, 60, 40, 60));
 
         JPanel rightPanel = new JPanel();
         rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
         rightPanel.setOpaque(false);
 
-        rightPanel.add(Box.createVerticalGlue());
         JLabel start = new JLabel("Start Here");
         start.setFont(AppFonts.bold(20));
         start.setForeground(MainFrame.NAV_BTN_BG);
         start.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JButton btnCheckIn = createOutlineButton("Check-In");
-        // JButton btnBaggage = createOutlineButton("Baggage");
+        JButton btnCheckIn = createOutlineButton("Check In");
+        JButton btnBaggage = createOutlineButton("Baggage Services");
         JButton btnTicket  = createOutlineButton("Ticket Status");
         btnCheckIn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        // btnBaggage.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btnBaggage.setAlignmentX(Component.LEFT_ALIGNMENT);
         btnTicket.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         btnCheckIn.addActionListener(e -> mainFrame.showCheckIn());
-        // btnBaggage.addActionListener(e -> mainFrame.showBaggage());
+        btnBaggage.addActionListener(e -> mainFrame.showBaggage());
         btnTicket.addActionListener(e -> mainFrame.showTicketStatus());
 
         rightPanel.add(start);
+        rightPanel.add(Box.createVerticalStrut(15));
         rightPanel.add(btnCheckIn);
         rightPanel.add(Box.createVerticalStrut(13));
-        // rightPanel.add(btnBaggage);
+        rightPanel.add(btnBaggage);
         rightPanel.add(Box.createVerticalStrut(13));
         rightPanel.add(btnTicket);
 
-        content.add(leftPanel);
-        content.add(rightPanel);
-
-        add(content, BorderLayout.CENTER);
+        bottomWrapper.add(rightPanel, BorderLayout.EAST);
+        add(bottomWrapper, BorderLayout.SOUTH);
     }
 
     private JButton createOutlineButton(String text) {

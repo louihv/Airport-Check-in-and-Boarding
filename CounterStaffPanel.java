@@ -5,9 +5,8 @@ import java.util.List;
 import java.util.Map;
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.JTableHeader;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
 public class CounterStaffPanel extends JPanel {
@@ -313,7 +312,7 @@ public class CounterStaffPanel extends JPanel {
         panel.add(statsRow, BorderLayout.SOUTH);
 
         btnNext.addActionListener(e -> callNextPassenger());
-        btnHold.addActionListener(e -> updateCurrentStatus("ON_HOLD"));
+        btnHold.addActionListener(e -> updateCurrentStatus("ON HOLD"));
         btnNoShow.addActionListener(e -> updateCurrentStatus("SKIPPED"));
         btnTransfer.addActionListener(e -> transferPassenger());
         btnRecall.addActionListener(e -> recallPassenger());
@@ -418,7 +417,7 @@ public class CounterStaffPanel extends JPanel {
                     setFont(AppFonts.bold(12));
                     switch (value.toString().toUpperCase()) {
                         case "WAITING": setForeground(new Color(45, 190, 180)); break;
-                        case "ON_HOLD": setForeground(new Color(70, 130, 180)); break;
+                        case "ON HOLD": setForeground(new Color(70, 130, 180)); break;
                         case "SKIPPED": setForeground(new Color(245, 166, 35)); break;
                         default:        setForeground(new Color(40, 40, 40));   break;
                     }
@@ -943,7 +942,7 @@ public class CounterStaffPanel extends JPanel {
             protected List<Map<String, String>> doInBackground() throws Exception {
                 List<Map<String, String>> list = new ArrayList<>();
                 list.addAll(FirebaseHelper.getTicketsByStatus("SKIPPED"));
-                list.addAll(FirebaseHelper.getTicketsByStatus("ON_HOLD"));
+                list.addAll(FirebaseHelper.getTicketsByStatus("ON HOLD"));
                 return list;
             }
 
@@ -1014,7 +1013,7 @@ public class CounterStaffPanel extends JPanel {
                     switch (s) {
                         case "SERVING":  serving++; break;
                         case "SKIPPED":  skipped++; break;
-                        case "ON_HOLD":  hold++; break;
+                        case "ON HOLD":  hold++; break;
                         default:         waiting++; break;   
                     }
                     if (!nullToEmpty(t.get("transferredFrom")).isEmpty()) transferred++;

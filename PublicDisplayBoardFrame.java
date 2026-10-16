@@ -232,17 +232,14 @@ public class PublicDisplayBoardFrame extends JFrame {
                 List<Object[]> users = FirebaseHelper.getAllUsers();
                 Map<String, String> counterToTicket = new HashMap<>(); 
 
-                List<Map<String, String>> tickets = FirebaseHelper.getAllTickets();
+                List<Map<String, String>> tickets = FirebaseHelper.getAllPendingTickets();   
                 for (Map<String, String> t : tickets) {
                     String status = t.get("status");
                     String counter = t.get("counter");
                     String ticketNo = t.get("ticketNo");
 
                     if (counter != null && !counter.equals("0") && !counter.isEmpty()
-                            && status != null
-                            && !status.equalsIgnoreCase("COMPLETED")
-                            && !status.equalsIgnoreCase("SERVED")) {
-
+                            && "SERVING".equalsIgnoreCase(status)) {   
                         counterToTicket.put(counter, ticketNo);
                     }
                 }
@@ -258,7 +255,7 @@ public class PublicDisplayBoardFrame extends JFrame {
                         if (counter == null || counter.equals("-") || counter.isEmpty()) continue;
 
                         String servingTicket = counterToTicket.getOrDefault(counter, "—");
-                        String displayStatus = servingTicket.equals("—") ? "OPEN" : "BUSY";
+                        String displayStatus = servingTicket.equals("—") ? "OPEN" : "SERVING";
 
                         tempModel.addRow(new Object[]{
                                 "Counter " + counter,
@@ -268,7 +265,7 @@ public class PublicDisplayBoardFrame extends JFrame {
 
                         if (!servingTicket.equals("—") && latestTicket.equals("---")) {
                             latestTicket = servingTicket;
-                            latestMessage = "Ticket " + servingTicket + " → Proceed to Counter " + counter;
+                            latestMessage = "Ticket " + servingTicket + " Proceed to Counter " + counter;
                         }
                     }
                 }

@@ -3,29 +3,36 @@ import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
-import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicLong;
 import javax.swing.*;
-import javax.swing.border.AbstractBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.plaf.basic.BasicComboBoxUI;
-import javax.swing.plaf.basic.BasicScrollBarUI;
 
 public class CheckInPanel extends JPanel {
 
-    private JTextField txtBookingRef, txtName, txtFlight;
-    private JComboBox<String> cmbCabin;
-    private JLabel lblStatus;
+    private static final Color ERROR_COLOR = new Color(200, 50, 50);
+    private static final Color TEXT_COLOR = new Color(40, 55, 50);
+
+    private static final int MODE_BOOKING = 0;
+    private static final int MODE_ETICKET = 1;
+    private static final int MODE_FREQUENT = 2;
+
     private final MainFrame mainFrame;
+    private CheckInConfirmPanel confirmPanel;
     private BufferedImage backgroundImage;
-    private final JPanel luggageContainer;
-    private final List<LuggageRow> luggageRows = new ArrayList<>();
-    private static final AtomicLong TAG_SEQ = new AtomicLong(System.currentTimeMillis() % 1_000_000_000L);
-    private JScrollPane scrollPane;
+
+    private JRadioButton rbBooking, rbEticket, rbFrequent;
+    private JLabel lblId, lblAirline, lblName, lblStatus;
+    private JTextField txtId, txtName;
+    private JComboBox<String> cmbAirline;
+    private JButton btnSubmit;
+
+    private int mode = MODE_BOOKING;
+    private String idPlaceholder = "Please enter a valid booking reference";
+    private final String namePlaceholder = "Please enter last name";
 
     public CheckInPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
@@ -37,8 +44,6 @@ public class CheckInPanel extends JPanel {
             }
             if (url != null) {
                 backgroundImage = javax.imageio.ImageIO.read(url);
-            } else {
-                System.err.println("Background image not found: /resources/bg_passenger.jpg");
             }
         } catch (Exception e) {
             System.err.println("Could not load background image: " + e.getMessage());
@@ -49,7 +54,6 @@ public class CheckInPanel extends JPanel {
 
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 15));
         topBar.setOpaque(false);
-
         JButton backButton = createBackButton("/resources/back.png");
         backButton.addActionListener(e -> mainFrame.showPanel("PassengerMenu"));
         topBar.add(backButton);
@@ -66,10 +70,8 @@ public class CheckInPanel extends JPanel {
         formContent.setOpaque(false);
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 10, 8, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridx = 0;
-        gbc.gridwidth = 1;
         gbc.weightx = 1.0;
         gbc.anchor = GridBagConstraints.WEST;
 
@@ -85,76 +87,82 @@ public class CheckInPanel extends JPanel {
             System.err.println("Could not load logo: " + e.getMessage());
         }
         logoLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
         gbc.gridy = 0;
         gbc.insets = new Insets(0, 10, 12, 10);
         formContent.add(logoLabel, gbc);
 
-        JLabel lblTitle = new JLabel("Passenger Check-In & Baggage", SwingConstants.CENTER);
+        JLabel lblTitle = new JLabel("Passenger Check-In", SwingConstants.CENTER);
         lblTitle.setFont(AppFonts.bold(26));
         lblTitle.setForeground(MainFrame.NAV_BTN_BG);
-
         gbc.gridy = 1;
         gbc.insets = new Insets(0, 10, 6, 10);
         formContent.add(lblTitle, gbc);
 
         JLabel lblInfo = new JLabel(
-                "<html><center>Please enter your booking details exactly as they appear<br>"
-              + "on your ticket. Only registered passengers can join the queue.</center></html>",
+                "<html><center>Choose how you would like to retrieve your booking,<br>"
+              + "then enter your details exactly as they appear on your ticket.</center></html>",
                 SwingConstants.CENTER);
         lblInfo.setFont(AppFonts.regular(12));
         lblInfo.setForeground(new Color(60, 80, 70));
-
         gbc.gridy = 2;
-        gbc.insets = new Insets(0, 10, 18, 10);
+        gbc.insets = new Insets(0, 10, 14, 10);
         formContent.add(lblInfo, gbc);
 
-        txtBookingRef = createStyledField("Enter your Booking Reference");
-        txtName = createStyledField("Enter your Passenger Name");
-        txtFlight = createStyledField("Enter your Flight Number");
+        rbBooking = createRadio("Booking reference", true);
+        rbEticket = createRadio("Eticket number", false);
+        rbFrequent = createRadio("Frequent Flyer number", false);
+        ButtonGroup group = new ButtonGroup();
+        group.add(rbBooking);
+        group.add(rbEticket);
+        group.add(rbFrequent);
 
-        cmbCabin = createStyledCombo(new String[]{
-            "Economy", "Premium Economy", "Business", "First Class"
-        });
-        cmbCabin.setSelectedItem("Economy");
+        JPanel radioRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 18, 0));
+        radioRow.setOpaque(false);
+        radioRow.add(rbBooking);
+        radioRow.add(rbEticket);
+        radioRow.add(rbFrequent);
+        gbc.gridy = 3;
+        gbc.insets = new Insets(0, 10, 14, 10);
+        formContent.add(radioRow, gbc);
 
-        addFormField(formContent, "Booking Reference:", txtBookingRef, gbc, 3);
-        addFormField(formContent, "Passenger Name:", txtName, gbc, 5);
-        addFormField(formContent, "Flight Number:", txtFlight, gbc, 7);
-        addComboField(formContent, "Cabin Class:", cmbCabin, gbc, 9);
+        lblAirline = createFieldLabel("Frequent flyer airline title");
+        cmbAirline = createStyledCombo(new String[]{"Philippine Airlines"});
+        lblId = createFieldLabel("Booking reference");
+        txtId = createStyledField(idPlaceholder);
+        lblName = createFieldLabel("Last name");
+        txtName = createStyledField(namePlaceholder);
 
-        JPanel luggageHeader = new JPanel(new BorderLayout(8, 0));
-        luggageHeader.setOpaque(false);
-
-        JLabel lblLuggage = new JLabel("Luggage Items:");
-        lblLuggage.setFont(AppFonts.regular(13));
-        lblLuggage.setForeground(MainFrame.NAV_BTN_BG);
-        luggageHeader.add(lblLuggage, BorderLayout.WEST);
-
-        gbc.gridy = 11;
+        gbc.gridy = 4;
         gbc.insets = new Insets(6, 10, 2, 10);
-        formContent.add(luggageHeader, gbc);
+        formContent.add(lblAirline, gbc);
+        gbc.gridy = 5;
+        gbc.insets = new Insets(0, 10, 10, 10);
+        formContent.add(cmbAirline, gbc);
 
-        luggageContainer = new JPanel();
-        luggageContainer.setLayout(new BoxLayout(luggageContainer, BoxLayout.Y_AXIS));
-        luggageContainer.setOpaque(false);
+        gbc.gridy = 6;
+        gbc.insets = new Insets(6, 10, 2, 10);
+        formContent.add(lblId, gbc);
+        gbc.gridy = 7;
+        gbc.insets = new Insets(0, 10, 10, 10);
+        formContent.add(txtId, gbc);
 
-        gbc.gridy = 12;
-        gbc.insets = new Insets(0, 10, 6, 10);
-        formContent.add(luggageContainer, gbc);
+        gbc.gridy = 8;
+        gbc.insets = new Insets(6, 10, 2, 10);
+        formContent.add(lblName, gbc);
+        gbc.gridy = 9;
+        gbc.insets = new Insets(0, 10, 10, 10);
+        formContent.add(txtName, gbc);
 
-        addLuggageRow();
+        lblAirline.setVisible(false);
+        cmbAirline.setVisible(false);
 
-        JButton btnSubmit = new JButton("Join Queue & Verify Baggage") {
+        btnSubmit = new JButton("Submit") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                int w = getWidth();
-                int h = getHeight();
-                int arc = 25;
                 g2.setColor(getBackground());
-                g2.fillRoundRect(0, 0, w, h, arc, arc);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 25, 25);
                 g2.dispose();
                 super.paintComponent(g);
             }
@@ -167,7 +175,6 @@ public class CheckInPanel extends JPanel {
         btnSubmit.setContentAreaFilled(false);
         btnSubmit.setOpaque(false);
         btnSubmit.setBorder(new RoundedBorder(MainFrame.SECONDARY_BTN_BG, 25, 1.2f));
-
         btnSubmit.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent e) {
                 btnSubmit.setBackground(MainFrame.NAV_BTN_BG);
@@ -176,91 +183,78 @@ public class CheckInPanel extends JPanel {
                 btnSubmit.setBackground(MainFrame.SECONDARY_BTN_BG);
             }
         });
-
-        gbc.gridy = 13;
+        gbc.gridy = 10;
         gbc.insets = new Insets(16, 10, 6, 10);
         formContent.add(btnSubmit, gbc);
 
         lblStatus = new JLabel(" ", SwingConstants.CENTER);
         lblStatus.setFont(AppFonts.italic(12));
         lblStatus.setForeground(MainFrame.NAV_BTN_BG);
-
-        gbc.gridy = 14;
+        gbc.gridy = 11;
         gbc.insets = new Insets(8, 10, 5, 10);
         formContent.add(lblStatus, gbc);
 
-        scrollPane = new JScrollPane(formContent);
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.setBorder(null);
-        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.getVerticalScrollBar().setUI(new ModernScrollBarUI());
-        scrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
-        scrollPane.getVerticalScrollBar().setOpaque(false);
-        scrollPane.getVerticalScrollBar().setBackground(MainFrame.SECONDARY_BTN_BG);
-
-        formCard.add(scrollPane, BorderLayout.CENTER);
-        formCard.setPreferredSize(new Dimension(750, 620));
+        formCard.add(formContent, BorderLayout.CENTER);
+        formCard.setPreferredSize(new Dimension(650, 600));
 
         centerWrapper.add(formCard);
         add(centerWrapper, BorderLayout.CENTER);
 
-        btnSubmit.addActionListener(e -> processCheckIn(btnSubmit));
+        rbBooking.addActionListener(e -> switchMode(MODE_BOOKING));
+        rbEticket.addActionListener(e -> switchMode(MODE_ETICKET));
+        rbFrequent.addActionListener(e -> switchMode(MODE_FREQUENT));
+        btnSubmit.addActionListener(e -> processCheckIn());
     }
 
-    private void addLuggageRow() {
-        LuggageRow row = new LuggageRow(generateTagId(), luggageRows.isEmpty());
-        luggageRows.add(row);
-        luggageContainer.add(row);
-        luggageContainer.revalidate();
-        luggageContainer.repaint();
+    // public void setConfirmPanel(CheckInConfirmPanel confirmPanel) {
+    //     this.confirmPanel = confirmPanel;
+    // }
 
-        formCardParentRevalidate();
-
-        // SwingUtilities.invokeLater(() -> {
-        //     JScrollBar bar = scrollPane.getVerticalScrollBar();
-        //     bar.setValue(bar.getMaximum());
-        // });
+    private JRadioButton createRadio(String text, boolean selected) {
+        JRadioButton rb = new JRadioButton(text, selected);
+        rb.setFont(AppFonts.regular(13));
+        rb.setForeground(MainFrame.NAV_BTN_BG);
+        rb.setOpaque(false);
+        rb.setFocusPainted(false);
+        rb.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        return rb;
     }
 
-    private void formCardParentRevalidate() {
-        Container c = luggageContainer.getParent();
-        while (c != null) {
-            c.revalidate();
-            c.repaint();
-            c = c.getParent();
+    private JLabel createFieldLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(AppFonts.regular(13));
+        label.setForeground(MainFrame.NAV_BTN_BG);
+        return label;
+    }
+
+    private void switchMode(int newMode) {
+        mode = newMode;
+        boolean frequent = newMode == MODE_FREQUENT;
+        lblAirline.setVisible(frequent);
+        cmbAirline.setVisible(frequent);
+
+        switch (newMode) {
+            case MODE_ETICKET:
+                lblId.setText("Eticket number");
+                idPlaceholder = "Please enter a ticket number";
+                break;
+            case MODE_FREQUENT:
+                lblId.setText("Frequent Flyer number");
+                idPlaceholder = "Please enter a valid frequent flyer number";
+                break;
+            default:
+                lblId.setText("Booking reference");
+                idPlaceholder = "Please enter a valid booking reference";
+                break;
         }
-    }
 
-    private String generateTagId() {
-        long seq = TAG_SEQ.incrementAndGet() % 1_000_000_000L;
-        int rand = ThreadLocalRandom.current().nextInt(10000);
-        long mixed = (seq * 31L + rand) % 10_000_000_000L;
-        if (mixed < 0) mixed = -mixed;
-        return String.format("%010d", mixed);
-    }
-
-    private JButton createPlusButton() {
-        JButton btn = new JButton();
-        try {
-            ImageIcon icon = new ImageIcon(new URL("https://img.icons8.com/ios-filled/24/2d6a4f/plus-math.png"));
-            Image scaled = icon.getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH);
-            btn.setIcon(new ImageIcon(scaled));
-        } catch (Exception e) {
-            btn.setText("+");
-            btn.setFont(AppFonts.bold(18));
-            btn.setForeground(MainFrame.NAV_BTN_BG);
-        }
-        btn.setContentAreaFilled(false);
-        btn.setOpaque(false);
-        btn.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setFocusPainted(false);
-        btn.setToolTipText("Add another luggage tag");
-        btn.setPreferredSize(new Dimension(32, 32));
-        return btn;
+        resetField(txtId, idPlaceholder);
+        resetField(txtName, namePlaceholder);
+        setFieldBorder(txtId, MainFrame.NAV_BTN_BG);
+        setFieldBorder(txtName, MainFrame.NAV_BTN_BG);
+        lblStatus.setText(" ");
+        revalidate();
+        repaint();
     }
 
     @Override
@@ -274,9 +268,7 @@ public class CheckInPanel extends JPanel {
             double scale = Math.max((double) panelW / imgW, (double) panelH / imgH);
             int drawW = (int) (imgW * scale);
             int drawH = (int) (imgH * scale);
-            int x = (panelW - drawW) / 2;
-            int y = (panelH - drawH) / 2;
-            g.drawImage(backgroundImage, x, y, drawW, drawH, this);
+            g.drawImage(backgroundImage, (panelW - drawW) / 2, (panelH - drawH) / 2, drawW, drawH, this);
         } else {
             g.setColor(MainFrame.MAIN_BG);
             g.fillRect(0, 0, getWidth(), getHeight());
@@ -300,49 +292,68 @@ public class CheckInPanel extends JPanel {
         return btn;
     }
 
+    private void setFieldBorder(JTextField field, Color color) {
+        field.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedBorder(color, 25, 1.2f),
+                BorderFactory.createEmptyBorder(5, 16, 5, 16)));
+        field.repaint();
+    }
+
     private JTextField createStyledField(String placeholder) {
         JTextField field = new JTextField(20);
         field.setFont(AppFonts.regular(13));
         field.setOpaque(false);
-        field.setForeground(MainFrame.SECONDARY_BTN_BG);
         field.setCaretColor(MainFrame.NAV_BTN_BG);
-        field.setBorder(BorderFactory.createCompoundBorder(
-                new RoundedBorder(MainFrame.NAV_BTN_BG, 25, 1.2f),
-                BorderFactory.createEmptyBorder(5, 16, 5, 16)
-        ));
         field.setText(placeholder);
         field.setForeground(MainFrame.SECONDARY_BTN_BG);
+        setFieldBorder(field, MainFrame.NAV_BTN_BG);
+
         field.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                if (field.getText().equals(placeholder)) {
+                if (isPlaceholder(field)) {
                     field.setText("");
-                    field.setForeground(new Color(40, 55, 50));
+                    field.setForeground(TEXT_COLOR);
                 }
             }
             @Override
             public void focusLost(FocusEvent e) {
                 if (field.getText().trim().isEmpty()) {
-                    field.setText(placeholder);
+                    field.setText(currentPlaceholder(field));
                     field.setForeground(MainFrame.SECONDARY_BTN_BG);
                 }
             }
         });
+
+        field.getDocument().addDocumentListener(new DocumentListener() {
+            private void clear() {
+                if (field.hasFocus() && !field.getText().trim().isEmpty()) {
+                    setFieldBorder(field, MainFrame.NAV_BTN_BG);
+                }
+            }
+            public void insertUpdate(DocumentEvent e) { clear(); }
+            public void removeUpdate(DocumentEvent e) { clear(); }
+            public void changedUpdate(DocumentEvent e) { clear(); }
+        });
         return field;
     }
 
-    private JTextField createReadOnlyTagField(String tagId) {
-        JTextField field = new JTextField(tagId);
-        field.setFont(AppFonts.regular(13));
-        field.setOpaque(false);
-        field.setEditable(false);
-        field.setFocusable(false);
-        field.setForeground(new Color(40, 55, 50));
-        field.setBorder(BorderFactory.createCompoundBorder(
-                new RoundedBorder(MainFrame.NAV_BTN_BG, 25, 1.2f),
-                BorderFactory.createEmptyBorder(5, 16, 5, 16)
-        ));
-        return field;
+    private String currentPlaceholder(JTextField field) {
+        return field == txtName ? namePlaceholder : idPlaceholder;
+    }
+
+    private boolean isPlaceholder(JTextField field) {
+        return field.getText().equals(currentPlaceholder(field));
+    }
+
+    private String getRealText(JTextField field) {
+        String text = field.getText().trim();
+        return text.equals(currentPlaceholder(field)) ? "" : text;
+    }
+
+    private void resetField(JTextField field, String placeholder) {
+        field.setText(placeholder);
+        field.setForeground(MainFrame.SECONDARY_BTN_BG);
     }
 
     private JComboBox<String> createStyledCombo(String[] items) {
@@ -350,16 +361,14 @@ public class CheckInPanel extends JPanel {
         combo.setFont(AppFonts.regular(13));
         combo.setOpaque(false);
         combo.setBackground(new Color(0, 0, 0, 0));
-        combo.setForeground(new Color(40, 55, 50));
+        combo.setForeground(TEXT_COLOR);
         combo.setPreferredSize(new Dimension(0, 42));
         combo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
         combo.setMinimumSize(new Dimension(80, 42));
-
         combo.setUI(new ModernComboBoxUI());
         combo.setBorder(BorderFactory.createCompoundBorder(
                 new RoundedBorder(MainFrame.NAV_BTN_BG, 25, 1.2f),
-                BorderFactory.createEmptyBorder(5, 0, 5, 8)
-        ));
+                BorderFactory.createEmptyBorder(5, 0, 5, 8)));
 
         combo.setRenderer(new DefaultListCellRenderer() {
             @Override
@@ -369,13 +378,12 @@ public class CheckInPanel extends JPanel {
                 label.setFont(AppFonts.regular(13));
                 label.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
                 label.setOpaque(true);
-
                 if (isSelected) {
                     label.setBackground(MainFrame.NAV_BTN_BG);
                     label.setForeground(Color.WHITE);
                 } else {
                     label.setBackground(Color.WHITE);
-                    label.setForeground(new Color(40, 55, 50));
+                    label.setForeground(TEXT_COLOR);
                 }
                 return label;
             }
@@ -386,8 +394,7 @@ public class CheckInPanel extends JPanel {
             JPopupMenu popupMenu = (JPopupMenu) popup;
             popupMenu.setBorder(BorderFactory.createLineBorder(MainFrame.NAV_BTN_BG, 1));
             popupMenu.setBackground(Color.WHITE);
-            Component[] comps = popupMenu.getComponents();
-            for (Component comp : comps) {
+            for (Component comp : popupMenu.getComponents()) {
                 if (comp instanceof JScrollPane) {
                     JScrollPane sp = (JScrollPane) comp;
                     sp.getViewport().setBackground(Color.WHITE);
@@ -395,366 +402,190 @@ public class CheckInPanel extends JPanel {
                     JList<?> list = (JList<?>) sp.getViewport().getView();
                     if (list != null) {
                         list.setBackground(Color.WHITE);
-                        list.setSelectionBackground(new Color(0, 0, 0, 0));
-                        list.setSelectionForeground(MainFrame.NAV_BTN_BG);
                         list.setFixedCellHeight(38);
                     }
                 }
             }
         }
-
         return combo;
     }
 
-    private void addFormField(JPanel panel, String labelText, JTextField field,
-                              GridBagConstraints gbc, int row) {
-        gbc.gridy = row;
-        gbc.insets = new Insets(6, 10, 2, 10);
-        JLabel label = new JLabel(labelText);
-        label.setFont(AppFonts.regular(13));
-        label.setForeground(MainFrame.NAV_BTN_BG);
-        panel.add(label, gbc);
+    private void processCheckIn() {
+        String id = getRealText(txtId);
+        String lastName = getRealText(txtName);
 
-        gbc.gridy = row + 1;
-        gbc.insets = new Insets(0, 10, 10, 10);
-        panel.add(field, gbc);
-    }
-
-    private void addComboField(JPanel panel, String labelText, JComboBox<String> combo,
-                               GridBagConstraints gbc, int row) {
-        gbc.gridy = row;
-        gbc.insets = new Insets(6, 10, 2, 10);
-        JLabel label = new JLabel(labelText);
-        label.setFont(AppFonts.regular(13));
-        label.setForeground(MainFrame.NAV_BTN_BG);
-        panel.add(label, gbc);
-
-        gbc.gridy = row + 1;
-        gbc.insets = new Insets(0, 10, 10, 10);
-        panel.add(combo, gbc);
-    }
-
-    private void showModernMessage(String message, String title, boolean isError) {
-        JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), title, Dialog.ModalityType.APPLICATION_MODAL);
-        dialog.setUndecorated(true);
-        dialog.setBackground(new Color(0, 0, 0, 0));
-        dialog.setLayout(new BorderLayout());
-
-        JPanel content = (JPanel) dialog.getContentPane();
-        content.setOpaque(false);
-        content.setLayout(new BorderLayout());
-
-        RoundedPanel card = new RoundedPanel(16, Color.WHITE);
-        card.setLayout(new BorderLayout(0, 16));
-        card.setBorder(BorderFactory.createCompoundBorder(
-                new RoundedOutlineBorder(1, MainFrame.SECONDARY_BTN_BG, 16),
-                BorderFactory.createEmptyBorder(24, 28, 24, 28)
-        ));
-
-        JLabel lblTitle = new JLabel(title);
-        lblTitle.setFont(AppFonts.bold(16));
-        lblTitle.setForeground(isError ? new Color(180, 50, 50) : MainFrame.NAV_BTN_BG);
-
-        JLabel lblMsg = new JLabel("<html><body style='width:280px'>" + message.replace("\n", "<br>") + "</body></html>");
-        lblMsg.setFont(AppFonts.regular(13));
-        lblMsg.setForeground(new Color(50, 65, 55));
-
-        JButton ok = new JButton("OK");
-        ok.setFont(AppFonts.bold(13));
-        ok.setBackground(isError ? new Color(180, 50, 50) : MainFrame.SECONDARY_BTN_BG);
-        ok.setForeground(Color.WHITE);
-        ok.setFocusPainted(false);
-        ok.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        ok.setBorder(BorderFactory.createEmptyBorder(10, 24, 10, 24));
-        ok.setOpaque(true);
-        ok.setContentAreaFilled(true);
-        ok.setPreferredSize(new Dimension(100, 36));
-        ok.addActionListener(e -> dialog.dispose());
-
-        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        btnRow.setOpaque(false);
-        btnRow.add(ok);
-
-        card.add(lblTitle, BorderLayout.NORTH);
-        card.add(lblMsg, BorderLayout.CENTER);
-        card.add(btnRow, BorderLayout.SOUTH);
-
-        content.add(card, BorderLayout.CENTER);
-        dialog.pack();
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
-    }
-
-    private void processCheckIn(JButton btnSubmit) {
-        String ref = getRealText(txtBookingRef, "Enter your Booking Reference");
-        String name = getRealText(txtName, "Enter your Passenger Name");
-        String flight = getRealText(txtFlight, "Enter your Flight Number");
-        String cabin = (String) cmbCabin.getSelectedItem();
-
-        if (ref.isEmpty() || name.isEmpty() || flight.isEmpty()) {
-            showModernMessage("Please fill in all required fields.", "Missing Information", true);
+        boolean invalid = false;
+        if (id.isEmpty()) {
+            setFieldBorder(txtId, ERROR_COLOR);
+            invalid = true;
+        }
+        if (lastName.isEmpty()) {
+            setFieldBorder(txtName, ERROR_COLOR);
+            invalid = true;
+        }
+        if (invalid) {
+            lblStatus.setForeground(ERROR_COLOR);
+            lblStatus.setText("Please complete the highlighted fields.");
             return;
         }
 
-        List<double[]> validBags = new ArrayList<>();
-        List<String> tags = new ArrayList<>();
-
-        for (LuggageRow row : luggageRows) {
-            String weightStr = getRealText(row.weightField, "Enter Baggage Weight (kg)");
-            String tag = row.tagField.getText().trim();
-
-            if (weightStr.isEmpty()) {
-                continue;
-            }
-
-            double weight;
-            try {
-                weight = Double.parseDouble(weightStr);
-            } catch (NumberFormatException ex) {
-                showModernMessage("Invalid weight value.", "Error", true);
-                return;
-            }
-
-            if (weight <= 0) {
-                showModernMessage("Weight must be greater than 0 kg.", "Error", true);
-                return;
-            }
-            if (weight > 50) {
-                showModernMessage("Weight exceeds maximum allowed limit (50 kg).", "Error", true);
-                return;
-            }
-
-            validBags.add(new double[]{weight});
-            tags.add(tag);
-        }
-
+        final int searchMode = mode;
         btnSubmit.setEnabled(false);
         lblStatus.setForeground(MainFrame.NAV_BTN_BG);
         lblStatus.setText("Processing...");
 
-        new SwingWorker<String, Void>() {
+        new SwingWorker<String[], Void>() {
+            private String failure;
+
             @Override
-            protected String doInBackground() throws Exception {
-                Map<String, String> passengerData = FirebaseHelper.getPassenger(ref);
-                if (passengerData == null) {
-                    return "NOT_FOUND";
+            protected String[] doInBackground() throws Exception {
+                Map<String, String> data = findPassenger(searchMode, id);
+                if (data == null) {
+                    failure = "NOT_FOUND";
+                    return null;
                 }
 
-                String dbName = passengerData.getOrDefault("passengerName", "").trim();
-                String dbFlight = passengerData.getOrDefault("flightId", "").trim();
-                if (!dbName.equalsIgnoreCase(name) || !dbFlight.equalsIgnoreCase(flight)) {
-                    return "MISMATCH";
+                String fullName = first(data, "passengerName", "name");
+                if (!matchesLastName(fullName, lastName)) {
+                    failure = "MISMATCH";
+                    return null;
                 }
 
-                java.util.List<java.util.Map<String, String>> existingTickets = FirebaseHelper.getAllTickets();
-                if (existingTickets != null) {
-                    for (java.util.Map<String, String> t : existingTickets) {
+                String ref = first(data, "bookingRef", "bookingReference", "ref");
+                if (ref.isEmpty()) {
+                    ref = id;
+                }
+
+                List<Map<String, String>> tickets = FirebaseHelper.getAllTickets();
+                if (tickets != null) {
+                    for (Map<String, String> t : tickets) {
                         if (ref.equalsIgnoreCase(t.get("bookingRef"))) {
-                            return "ALREADY_EXISTS";
+                            failure = "ALREADY_EXISTS";
+                            return null;
                         }
                     }
                 }
-
                 try {
-                    java.util.List<java.util.Map<String, String>> pending =
-                            FirebaseHelper.getAllPendingTickets();
+                    List<Map<String, String>> pending = FirebaseHelper.getAllPendingTickets();
                     if (pending != null) {
-                        for (java.util.Map<String, String> p : pending) {
+                        for (Map<String, String> p : pending) {
                             if (ref.equalsIgnoreCase(p.get("bookingRef"))) {
-                                return "ALREADY_EXISTS";
+                                failure = "ALREADY_EXISTS";
+                                return null;
                             }
                         }
                     }
                 } catch (Exception ignored) {
                 }
 
-                StringBuilder combinedInfo = new StringBuilder();
-                boolean anyExcess = false;
-
-                for (int i = 0; i < validBags.size(); i++) {
-                    double weight = validBags.get(i)[0];
-                    String tag = tags.get(i);
-
-                    if (weight > 23.0) anyExcess = true;
-
-                    String json = String.format(
-                        "{\"bookingRef\":\"%s\",\"tagId\":\"%s\",\"weight\":%.1f,\"passengerName\":\"%s\",\"flightId\":\"%s\",\"timestamp\":\"%s\"}",
-                        ref,
-                        tag,
-                        weight,
-                        passengerData.get("passengerName"),
-                        passengerData.get("flightId"),
-                        java.time.LocalDateTime.now().toString()
-                    );
-                    FirebaseHelper.put("baggage/" + tag, json);
-
-                    if (combinedInfo.length() > 0) combinedInfo.append("; ");
-                    combinedInfo.append(String.format("%.1f kg | Tag: %s", weight, tag));
+                String flight = first(data, "flightId", "flight", "flightNumber");
+                String cabin = first(data, "cabin", "cabinClass");
+                if (cabin.isEmpty()) {
+                    cabin = "Economy";
                 }
-
-                String baggageStr = combinedInfo.length() > 0 ? combinedInfo.toString() : "No baggage";
-
-                QueueManager qm = QueueManager.getInstance();
-                String ticketNo = qm.generateTicketNumber();
-                Passenger passenger = new Passenger(ref, name, flight, baggageStr, ticketNo, cabin);
-                passenger.setCabin(cabin);
-                qm.addPassenger(passenger);  
-                try {
-                    FirebaseHelper.put("pendingTickets/" + ticketNo + "/baggage", "\"" + baggageStr + "\"");
-                } catch (Exception ignored) {}
-
-                if (existingTickets != null) {
-                    for (java.util.Map<String, String> t : existingTickets) {
-                        if (ref.equalsIgnoreCase(t.get("bookingRef"))) {
-                            FirebaseHelper.put("tickets/" + t.get("ticketNo") + "/baggage", "\"" + baggageStr + "\"");
-                            break;
-                        }
-                    }
-                }
-
-                return anyExcess ? "EXCESS:" + ticketNo : "OK:" + ticketNo;
+                return new String[]{ref, fullName, flight, cabin};
             }
 
             @Override
             protected void done() {
                 btnSubmit.setEnabled(true);
                 try {
-                    String result = get();
-                    if ("NOT_FOUND".equals(result)) {
-                        lblStatus.setForeground(Color.RED);
-                        lblStatus.setText("Passenger not found.");
-                        showModernMessage(
-                                "Passenger not found or details do not match.\n"
-                            + "Please verify your booking reference, name and flight number.",
-                                "Validation Failed", true);
-                    } else if ("MISMATCH".equals(result)) {
-                        lblStatus.setForeground(Color.RED);
-                        lblStatus.setText("Details do not match.");
-                        showModernMessage(
-                                "Passenger not found or details do not match.\n"
-                            + "Please verify your booking reference, name and flight number.",
-                                "Validation Failed", true);
-                    } else if ("ALREADY_EXISTS".equals(result)) {
-                        lblStatus.setForeground(Color.RED);
-                        lblStatus.setText("Already checked in.");
-                        showModernMessage(
-                                "This booking reference is already in the queue or has a ticket.\n"
-                            + "Duplicate check-in is not allowed.",
-                                "Already Exists", true);
-                    } else if (result.startsWith("EXCESS:")) {
-                        String ticketNo = result.substring(7);
-                        lblStatus.setForeground(Color.RED);
-                        lblStatus.setText("Warning: Excess Baggage Fee Required");
-                        showModernMessage(
-                                "Check-in successful!\nQueue Ticket Issued: " + ticketNo
-                            + "\nCabin: " + cabin
-                            + "\n\nOne or more bags exceed 23 kg.\nExcess baggage fee may apply.",
-                                "Queue Ticket Generated", true);
-                        resetForm();
-                    } else if (result.startsWith("OK:")) {
-                        String ticketNo = result.substring(3);
-                        lblStatus.setForeground(MainFrame.SECONDARY_BTN_BG);
-                        lblStatus.setText("Check-in & Baggage Verified Successfully!");
-                        showModernMessage(
-                                "Check-in successful!\nQueue Ticket Issued: " + ticketNo
-                            + "\nCabin: " + cabin
-                            + "\n" + (validBags.isEmpty() ? "No baggage declared." : "All baggage items verified and tagged."),
-                                "Queue Ticket Generated", false);
-                        resetForm();
+                    String[] result = get();
+                    if (result == null) {
+                        lblStatus.setForeground(ERROR_COLOR);
+                        if ("ALREADY_EXISTS".equals(failure)) {
+                            lblStatus.setText("This booking is already checked in.");
+                        } else {
+                            lblStatus.setText("Passenger not found or details do not match.");
+                            setFieldBorder(txtId, ERROR_COLOR);
+                            setFieldBorder(txtName, ERROR_COLOR);
+                        }
+                        return;
                     }
+                    if (confirmPanel == null) {
+                        confirmPanel = CheckInConfirmPanel.getInstance();
+                    }
+                    if (confirmPanel == null) {
+                        lblStatus.setForeground(ERROR_COLOR);
+                        lblStatus.setText("Confirm page was not created in MainFrame.");
+                        return;
+                    }
+                    lblStatus.setText(" ");
+                    confirmPanel.setPassenger(result[0], result[1], result[2], result[3]);
+                    resetForm();
+                    mainFrame.showPanel("CheckInConfirm");
                 } catch (Exception ex) {
-                    lblStatus.setForeground(Color.RED);
+                    lblStatus.setForeground(ERROR_COLOR);
                     lblStatus.setText("Connection error. Check internet / Firebase.");
-                    showModernMessage(
-                            "Failed to validate passenger.\nCheck internet / Firebase connection.",
-                            "Error", true);
                     ex.printStackTrace();
                 }
             }
         }.execute();
     }
 
-    private void resetForm() {
-        resetField(txtBookingRef, "Enter your Booking Reference");
-        resetField(txtName, "Enter your Passenger Name");
-        resetField(txtFlight, "Enter your Flight Number");
-        cmbCabin.setSelectedItem("Economy");
-        luggageContainer.removeAll();
-        luggageRows.clear();
-        addLuggageRow();
-        luggageContainer.revalidate();
-        luggageContainer.repaint();
-        lblStatus.setText(" ");
-        lblStatus.setForeground(MainFrame.NAV_BTN_BG);
-    }
-
-    private String getRealText(JTextField field, String placeholder) {
-        String text = field.getText().trim();
-        return text.equals(placeholder) ? "" : text;
-    }
-
-    private void resetField(JTextField field, String placeholder) {
-        field.setText(placeholder);
-        field.setForeground(MainFrame.SECONDARY_BTN_BG);
-    }
-
-    private class LuggageRow extends JPanel {
-        final JTextField weightField;
-        final JTextField tagField;
-
-        LuggageRow(String tagId, boolean showPlus) {
-            setLayout(new GridBagLayout());
-            setOpaque(false);
-            setBorder(new EmptyBorder(4, 0, 8, 0));
-
-            GridBagConstraints c = new GridBagConstraints();
-            c.fill = GridBagConstraints.HORIZONTAL;
-            c.weightx = 1.0;
-
-            JLabel wLabel = new JLabel("Weight (kg):");
-            wLabel.setFont(AppFonts.regular(12));
-            wLabel.setForeground(MainFrame.NAV_BTN_BG);
-            c.gridx = 0;
-            c.gridy = 0;
-            c.gridwidth = 2;
-            c.insets = new Insets(0, 0, 2, 0);
-            add(wLabel, c);
-
-            weightField = createStyledField("Enter Baggage Weight (kg)");
-            c.gridy = 1;
-            c.gridx = 0;
-            c.gridwidth = 1;
-            c.weightx = 1.0;
-            c.insets = new Insets(0, 0, 6, 4);
-            add(weightField, c);
-
-            if (showPlus) {
-                JButton plusBtn = createPlusButton();
-                plusBtn.addActionListener(e -> addLuggageRow());
-                c.gridx = 1;
-                c.weightx = 0;
-                c.fill = GridBagConstraints.NONE;
-                c.insets = new Insets(0, 0, 6, 0);
-                add(plusBtn, c);
+    private static String first(Map<String, String> map, String... keys) {
+        for (String k : keys) {
+            String v = map.get(k);
+            if (v != null && !v.trim().isEmpty()) {
+                return v.trim();
             }
-
-            c.fill = GridBagConstraints.HORIZONTAL;
-            c.weightx = 1.0;
-            c.gridwidth = 2;
-
-            JLabel tLabel = new JLabel("Luggage Tag ID:");
-            tLabel.setFont(AppFonts.regular(12));
-            tLabel.setForeground(MainFrame.NAV_BTN_BG);
-            c.gridx = 0;
-            c.gridy = 2;
-            c.insets = new Insets(0, 0, 2, 0);
-            add(tLabel, c);
-
-            tagField = createReadOnlyTagField(tagId);
-            c.gridy = 3;
-            c.insets = new Insets(0, 0, 0, 0);
-            add(tagField, c);
         }
+        return "";
+    }
+
+    private Map<String, String> findPassenger(int searchMode, String id) throws Exception {
+        String[] keys;
+        if (searchMode == MODE_ETICKET) {
+            keys = new String[]{"eticketNumber", "eticket", "ticketNumber", "eTicketNumber"};
+        } else if (searchMode == MODE_FREQUENT) {
+            keys = new String[]{"frequentFlyerNumber", "frequentFlyer", "ffNumber"};
+        } else {
+            keys = new String[]{"bookingRef", "bookingReference", "ref"};
+        }
+
+        List<Map<String, String>> all = FirebaseHelper.getAllPassengers();
+        if (all != null) {
+            for (Map<String, String> p : all) {
+                if (!id.equalsIgnoreCase(first(p, keys))) {
+                    continue;
+                }
+                if (searchMode == MODE_FREQUENT) {
+                    String airline = first(p, "frequentFlyerAirline", "airline");
+                    if (!airline.isEmpty() && !airline.equalsIgnoreCase((String) cmbAirline.getSelectedItem())) {
+                        continue;
+                    }
+                }
+                return p;
+            }
+        }
+
+        if (searchMode == MODE_BOOKING) {
+            return FirebaseHelper.getPassenger(id);
+        }
+        return null;
+    }
+
+    private boolean matchesLastName(String fullName, String entered) {
+        if (fullName.isEmpty()) {
+            return false;
+        }
+        if (fullName.equalsIgnoreCase(entered)) {
+            return true;
+        }
+        String[] parts = fullName.split("[\\s,]+");
+        for (String part : parts) {
+            if (part.equalsIgnoreCase(entered)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void resetForm() {
+        rbBooking.setSelected(true);
+        switchMode(MODE_BOOKING);
+        cmbAirline.setSelectedIndex(0);
+        lblStatus.setText(" ");
     }
 
     private static class ModernComboBoxUI extends BasicComboBoxUI {
@@ -773,7 +604,6 @@ public class CheckInPanel extends JPanel {
                     g2.fillPolygon(xPoints, yPoints, 3);
                     g2.dispose();
                 }
-
                 @Override
                 public Dimension getPreferredSize() {
                     return new Dimension(28, 28);
@@ -790,110 +620,12 @@ public class CheckInPanel extends JPanel {
         }
     }
 
-    private static class ModernScrollBarUI extends BasicScrollBarUI {
-        @Override
-        protected void configureScrollBarColors() {
-            this.thumbColor = MainFrame.SECONDARY_BTN_BG;
-            this.trackColor = new Color(184, 190, 210);
-        }
-
-        @Override
-        protected JButton createDecreaseButton(int orientation) {
-            return createZeroButton();
-        }
-
-        @Override
-        protected JButton createIncreaseButton(int orientation) {
-            return createZeroButton();
-        }
-
-        private JButton createZeroButton() {
-            JButton btn = new JButton();
-            btn.setPreferredSize(new Dimension(0, 0));
-            btn.setMinimumSize(new Dimension(0, 0));
-            btn.setMaximumSize(new Dimension(0, 0));
-            return btn;
-        }
-
-        @Override
-        protected void paintTrack(Graphics g, JComponent c, Rectangle trackBounds) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(trackColor);
-            g2.fillRoundRect(trackBounds.x + 2, trackBounds.y, trackBounds.width - 4, trackBounds.height, 8, 8);
-            g2.dispose();
-        }
-
-        @Override
-        protected void paintThumb(Graphics g, JComponent c, Rectangle thumbBounds) {
-            if (thumbBounds.isEmpty() || !scrollbar.isEnabled()) return;
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(thumbColor);
-            g2.fillRoundRect(thumbBounds.x + 1, thumbBounds.y + 2, thumbBounds.width - 2, thumbBounds.height - 4, 8, 8);
-            g2.dispose();
-        }
-    }
-
-    private static class RoundedPanel extends JPanel {
-        private final int radius;
-        private final Color bg;
-
-        public RoundedPanel(int radius, Color bg) {
-            this.radius = radius;
-            this.bg = bg;
-            setOpaque(false);
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(bg);
-            g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, radius, radius));
-            g2.dispose();
-            super.paintComponent(g);
-        }
-    }
-
-    private static class RoundedOutlineBorder extends AbstractBorder {
-        private final int thickness;
-        private final Color color;
-        private final int radius;
-
-        public RoundedOutlineBorder(int thickness, Color color, int radius) {
-            this.thickness = thickness;
-            this.color = color;
-            this.radius = radius;
-        }
-
-        @Override
-        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(color);
-            g2.setStroke(new BasicStroke(thickness));
-            g2.draw(new RoundRectangle2D.Float(
-                    x + thickness / 2f,
-                    y + thickness / 2f,
-                    width - thickness,
-                    height - thickness,
-                    radius, radius));
-            g2.dispose();
-        }
-
-        @Override
-        public Insets getBorderInsets(Component c) {
-            return new Insets(8, 14, 8, 14);
-        }
-    }
-
     private static class RoundedBorder implements javax.swing.border.Border {
         private final Color color;
         private final int radius;
         private final float thickness;
 
-        public RoundedBorder(Color color, int radius, float thickness) {
+        RoundedBorder(Color color, int radius, float thickness) {
             this.color = color;
             this.radius = radius;
             this.thickness = thickness;
@@ -921,7 +653,7 @@ public class CheckInPanel extends JPanel {
     }
 
     private static class GlassPanel extends JPanel {
-        public GlassPanel() {
+        GlassPanel() {
             setOpaque(false);
         }
 
@@ -929,23 +661,18 @@ public class CheckInPanel extends JPanel {
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
             int w = getWidth();
             int h = getHeight();
             int arc = 32;
             g2.setColor(new Color(0, 0, 0, 35));
-            g2.fillRoundRect(5, 7, w - 10, h - 10, arc, arc);
-            g2.setColor(new Color(255, 255, 255, 95));
-            g2.fillRoundRect(0, 0, w - 1, h - 1, arc, arc);
-            g2.setPaint(new GradientPaint(
-                    0, 0, new Color(255, 255, 255, 110),
-                    0, h / 2.5f, new Color(255, 255, 255, 15)));
-            g2.fillRoundRect(0, 0, w - 1, (int) (h / 2.2), arc, arc);
-            g2.setColor(new Color(255, 255, 255, 160));
+            g2.fill(new RoundRectangle2D.Float(5, 7, w - 10, h - 10, arc, arc));
+            g2.setColor(new Color(255, 255, 255, 245));
+            g2.fill(new RoundRectangle2D.Float(0, 0, w - 1, h - 1, arc, arc));
+            g2.setColor(new Color(255, 255, 255));
             g2.setStroke(new BasicStroke(1.6f));
-            g2.drawRoundRect(0, 0, w - 1, h - 1, arc, arc);
+            g2.draw(new RoundRectangle2D.Float(0, 0, w - 1, h - 1, arc, arc));
             g2.dispose();
             super.paintComponent(g);
         }
     }
-}   
+}

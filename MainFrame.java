@@ -8,23 +8,22 @@ public class MainFrame extends JFrame {
     private CardLayout cardLayout;
     private JPanel mainPanel;
     private JPanel sidebar;
-    private JButton btnDash, btnStaff, btnFlights, btnMonitor, btnReports,btnBoarding, btnPassenger, btnAccounts, btnUsers, btnLogout, btnLaunchTV;
+    private JButton btnDash, btnStaff, btnBaggage, btnFlights, btnMonitor, btnReports, btnBoarding, btnPassenger, btnAccounts, btnUsers, btnLogout, btnLaunchTV;
     public static final Color SIDEBAR_BG = new Color(20, 42, 31);
     public static final Color NAV_BTN_BG = new Color(17, 34, 80);
     public static final Color SECONDARY_BTN_BG = new Color(60, 81, 126);
     public static final Color MAIN_BG = new Color(244, 239, 233); 
-    private String currentRole = null; // "STAFF" or "ADMIN"
+    private String currentRole = null;
     private String currentUsername = null;
     private QueueMonitoringPanel monitorPanel;
     private AccountPanel accountPanel;
     private JLabel lblUsername;
     private JLabel lblRole;
     private CounterStaffPanel staffPanel;
+    private BaggageCounterPanel baggagePanel;
     private boolean cleanedUp = false;
 
-
     public MainFrame() {
-        // setTitle("Airport Queuing System");
         setMinimumSize(new Dimension(1000, 650));
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setUndecorated(true);
@@ -102,6 +101,7 @@ public class MainFrame extends JFrame {
        
         btnDash = createNavButton("Dashboard","https://img.icons8.com/ios-filled/50/ffffff/dashboard.png");
         btnStaff = createNavButton("Staff Counter","https://img.icons8.com/ios-filled/50/ffffff/conference-call.png");
+        btnBaggage = createNavButton("Baggage Counter","https://img.icons8.com/ios-filled/50/ffffff/suitcase.png");
         btnBoarding = createNavButton("Boarding Queue","https://img.icons8.com/ios-filled/50/ffffff/boarding-pass.png");        
         btnMonitor = createNavButton("Queue Monitoring","https://img.icons8.com/ios-filled/50/ffffff/monitor.png");
         btnFlights = createNavButton("Flight Scheduler", "https://img.icons8.com/ios-filled/50/ffffff/airplane-mode-on.png");
@@ -114,9 +114,11 @@ public class MainFrame extends JFrame {
         navPanel.add(Box.createVerticalStrut(6));
         navPanel.add(btnStaff);
         navPanel.add(Box.createVerticalStrut(6));
-        // navPanel.add(btnBoarding);
-        // navPanel.add(Box.createVerticalStrut(6));
+        navPanel.add(btnBaggage);
+        navPanel.add(Box.createVerticalStrut(6));
         navPanel.add(btnMonitor);
+        navPanel.add(Box.createVerticalStrut(6));
+        navPanel.add(btnBoarding);
         navPanel.add(Box.createVerticalStrut(6));
         navPanel.add(btnFlights);
         navPanel.add(Box.createVerticalStrut(6));
@@ -145,9 +147,12 @@ public class MainFrame extends JFrame {
         mainPanel.add(new CustomerLoginPanel(this), "CustomerLogin");
         mainPanel.add(new CustomerRegistrationPanel(this), "CustomerRegistration");
         mainPanel.add(new CheckInPanel(this), "CheckIn");
+        mainPanel.add(new CheckInConfirmPanel(this), "CheckInConfirm");
         mainPanel.add(new TicketStatusPanel(this), "TicketStatus");
         staffPanel = new CounterStaffPanel(this);
-        mainPanel.add(staffPanel, "Staff"); 
+        mainPanel.add(staffPanel, "Staff");
+        baggagePanel = new BaggageCounterPanel(this);
+        mainPanel.add(baggagePanel, "BaggageCounter");
         mainPanel.add(new BoardingQueuePanel(this), "BoardingQueue");
         monitorPanel = new QueueMonitoringPanel();
         mainPanel.add(monitorPanel, "Monitor");
@@ -161,6 +166,7 @@ public class MainFrame extends JFrame {
 
         btnDash.addActionListener(e -> cardLayout.show(mainPanel, "Dashboard"));
         btnStaff.addActionListener(e -> cardLayout.show(mainPanel, "Staff"));
+        btnBaggage.addActionListener(e -> cardLayout.show(mainPanel, "BaggageCounter"));
         btnBoarding.addActionListener(e -> cardLayout.show(mainPanel, "BoardingQueue"));
         btnMonitor.addActionListener(e -> cardLayout.show(mainPanel, "Monitor"));
         btnFlights.addActionListener(e -> cardLayout.show(mainPanel, "FlightScheduler"));
@@ -209,6 +215,11 @@ public class MainFrame extends JFrame {
         cardLayout.show(mainPanel, "CheckIn");
     }
 
+    public void showCheckInConfirm() {
+        sidebar.setVisible(false);
+        cardLayout.show(mainPanel, "CheckInConfirm");
+    }
+
     public void showBaggage() {
         sidebar.setVisible(false);
         cardLayout.show(mainPanel, "Baggage");
@@ -218,11 +229,11 @@ public class MainFrame extends JFrame {
         sidebar.setVisible(false);
         cardLayout.show(mainPanel, "TicketStatus");
     }
-    
 
     public void setNavigationEnabled(boolean enabled) {
         btnDash.setEnabled(enabled);
         btnStaff.setEnabled(enabled);
+        btnBaggage.setEnabled(enabled);
         btnBoarding.setEnabled(enabled);
         btnMonitor.setEnabled(enabled);
         btnFlights.setEnabled(enabled);
@@ -261,15 +272,14 @@ public class MainFrame extends JFrame {
     private void applyRoleSidebar(String role) {
         btnDash.setVisible(true);
         btnStaff.setVisible(true);
+        btnBaggage.setVisible(true);
         btnMonitor.setVisible(true);
         btnLaunchTV.setVisible(true);
         btnLogout.setVisible(true);
         if ("ADMIN".equals(role)) {
-        // btnReports.setVisible(true);
-        btnUsers.setVisible(true);
+            btnUsers.setVisible(true);
         } else {
-        // btnReports.setVisible(false);
-        btnUsers.setVisible(false);
+            btnUsers.setVisible(false);
         }
     }
 
@@ -296,29 +306,30 @@ public class MainFrame extends JFrame {
     }
 
     public void logout() {
-    if (staffPanel != null) staffPanel.resetCounter(); 
+        if (staffPanel != null) staffPanel.resetCounter();
+        if (baggagePanel != null) baggagePanel.resetCounter();
 
-    if (currentUsername != null) {
-        final String userToOffline = currentUsername;
-        new Thread(() -> {
-            try {
-                FirebaseHelper.setOffline(userToOffline);
-                System.out.println("Status set to Offline for: " + userToOffline);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
+        if (currentUsername != null) {
+            final String userToOffline = currentUsername;
+            new Thread(() -> {
+                try {
+                    FirebaseHelper.setOffline(userToOffline);
+                    System.out.println("Status set to Offline for: " + userToOffline);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
+        }
 
-    currentRole = null;
-    currentUsername = null;
-    monitorPanel.clear();
-    lblUsername.setText("Username");
-    lblRole.setText("ADMIN");
-    sidebar.setVisible(false);
-    setNavigationEnabled(true);
-    cardLayout.show(mainPanel, "Role");
-    revalidate();
+        currentRole = null;
+        currentUsername = null;
+        monitorPanel.clear();
+        lblUsername.setText("Username");
+        lblRole.setText("ADMIN");
+        sidebar.setVisible(false);
+        setNavigationEnabled(true);
+        cardLayout.show(mainPanel, "Role");
+        revalidate();
         repaint();
     }
 
@@ -400,165 +411,165 @@ public class MainFrame extends JFrame {
     }
 
     private JPanel createCustomTitleBar() {
-    JPanel titleBar = new JPanel(new BorderLayout());
-    titleBar.setBackground(MAIN_BG);
-    titleBar.setPreferredSize(new Dimension(0, 35));
+        JPanel titleBar = new JPanel(new BorderLayout());
+        titleBar.setBackground(MAIN_BG);
+        titleBar.setPreferredSize(new Dimension(0, 35));
 
-    JPanel leftPanel = new JPanel(new FlowLayout(
-            FlowLayout.LEFT,
-            12,
-            0
-    ));
+        JPanel leftPanel = new JPanel(new FlowLayout(
+                FlowLayout.LEFT,
+                12,
+                0
+        ));
 
-    leftPanel.setOpaque(false);
+        leftPanel.setOpaque(false);
 
-    JLabel logoLabel = new JLabel();
+        JLabel logoLabel = new JLabel();
 
-    try {
-        URL logoUrl = getClass().getResource("/resources/logo.png");
+        try {
+            URL logoUrl = getClass().getResource("/resources/logo.png");
 
-        if (logoUrl != null) {
+            if (logoUrl != null) {
 
-            ImageIcon original = new ImageIcon(logoUrl);
+                ImageIcon original = new ImageIcon(logoUrl);
 
-            Image scaled = original.getImage().getScaledInstance(
-                    26,
-                    26,
-                    Image.SCALE_SMOOTH
-            );
+                Image scaled = original.getImage().getScaledInstance(
+                        26,
+                        26,
+                        Image.SCALE_SMOOTH
+                );
 
-            logoLabel.setIcon(new ImageIcon(scaled));
-        }
-
-    } catch (Exception e) {
-        System.err.println("Could not load title bar logo: "
-                + e.getMessage());
-    }
-
-    JLabel title = new JLabel("Orion Skyways");
-
-    title.setFont(AppFonts.regular(13));
-    title.setForeground(new Color(55, 55, 55));
-
-    leftPanel.add(logoLabel);
-    leftPanel.add(title);
-
-    JPanel windowButtons = new JPanel(
-            new FlowLayout(
-                    FlowLayout.RIGHT,
-                    0,
-                    0
-            )
-    );
-
-    windowButtons.setOpaque(false);
-
-    JButton minimizeButton = createWindowButton("https://img.icons8.com/?size=50&id=1504&format=png&color=3c517e");
-    JButton maximizeButton = createWindowButton("https://img.icons8.com/?size=50&id=x23tBPwES2tB&format=png&color=3c517e");
-    JButton closeButton = createWindowButton( "https://img.icons8.com/?size=50&id=46&format=png&color=3c517e");
-
-    minimizeButton.addActionListener(e ->
-            setState(JFrame.ICONIFIED)
-    );
-
-    maximizeButton.addActionListener(e -> {
-
-        if ((getExtendedState() & JFrame.MAXIMIZED_BOTH)
-                == JFrame.MAXIMIZED_BOTH) {
-
-            setExtendedState(JFrame.NORMAL);
-
-        } else {
-
-            setExtendedState(JFrame.MAXIMIZED_BOTH);
-        }
-    });
-
-    closeButton.addActionListener(e -> {
-        cleanupOnExit();
-        dispose();
-        System.exit(0);
-
-    });
-
-    windowButtons.add(minimizeButton);
-    windowButtons.add(maximizeButton);
-    windowButtons.add(closeButton);
-
-    titleBar.add(leftPanel, BorderLayout.WEST);
-    titleBar.add(windowButtons, BorderLayout.EAST);
-
-    final Point[] mouseDown = {null};
-
-    titleBar.addMouseListener(
-        new java.awt.event.MouseAdapter() {
-
-            @Override
-            public void mousePressed(
-                    java.awt.event.MouseEvent e) {
-
-                mouseDown[0] = e.getPoint();
+                logoLabel.setIcon(new ImageIcon(scaled));
             }
+
+        } catch (Exception e) {
+            System.err.println("Could not load title bar logo: "
+                    + e.getMessage());
         }
-    );
 
-    titleBar.addMouseMotionListener(
-        new java.awt.event.MouseMotionAdapter() {
+        JLabel title = new JLabel("Orion Skyways");
 
-            @Override
-            public void mouseDragged(
-                    java.awt.event.MouseEvent e) {
+        title.setFont(AppFonts.regular(13));
+        title.setForeground(new Color(55, 55, 55));
 
-                if (mouseDown[0] != null &&
-                    (getExtendedState()
-                        & JFrame.MAXIMIZED_BOTH) == 0) {
+        leftPanel.add(logoLabel);
+        leftPanel.add(title);
 
-                    Point location = getLocation();
+        JPanel windowButtons = new JPanel(
+                new FlowLayout(
+                        FlowLayout.RIGHT,
+                        0,
+                        0
+                )
+        );
 
-                    setLocation(
-                        location.x
-                            + e.getX()
-                            - mouseDown[0].x,
+        windowButtons.setOpaque(false);
 
-                        location.y
-                            + e.getY()
-                            - mouseDown[0].y
-                    );
+        JButton minimizeButton = createWindowButton("https://img.icons8.com/?size=50&id=1504&format=png&color=3c517e");
+        JButton maximizeButton = createWindowButton("https://img.icons8.com/?size=50&id=x23tBPwES2tB&format=png&color=3c517e");
+        JButton closeButton = createWindowButton( "https://img.icons8.com/?size=50&id=46&format=png&color=3c517e");
+
+        minimizeButton.addActionListener(e ->
+                setState(JFrame.ICONIFIED)
+        );
+
+        maximizeButton.addActionListener(e -> {
+
+            if ((getExtendedState() & JFrame.MAXIMIZED_BOTH)
+                    == JFrame.MAXIMIZED_BOTH) {
+
+                setExtendedState(JFrame.NORMAL);
+
+            } else {
+
+                setExtendedState(JFrame.MAXIMIZED_BOTH);
+            }
+        });
+
+        closeButton.addActionListener(e -> {
+            cleanupOnExit();
+            dispose();
+            System.exit(0);
+
+        });
+
+        windowButtons.add(minimizeButton);
+        windowButtons.add(maximizeButton);
+        windowButtons.add(closeButton);
+
+        titleBar.add(leftPanel, BorderLayout.WEST);
+        titleBar.add(windowButtons, BorderLayout.EAST);
+
+        final Point[] mouseDown = {null};
+
+        titleBar.addMouseListener(
+            new java.awt.event.MouseAdapter() {
+
+                @Override
+                public void mousePressed(
+                        java.awt.event.MouseEvent e) {
+
+                    mouseDown[0] = e.getPoint();
                 }
             }
-        }
-    );
+        );
 
-    return titleBar;
+        titleBar.addMouseMotionListener(
+            new java.awt.event.MouseMotionAdapter() {
+
+                @Override
+                public void mouseDragged(
+                        java.awt.event.MouseEvent e) {
+
+                    if (mouseDown[0] != null &&
+                        (getExtendedState()
+                            & JFrame.MAXIMIZED_BOTH) == 0) {
+
+                        Point location = getLocation();
+
+                        setLocation(
+                            location.x
+                                + e.getX()
+                                - mouseDown[0].x,
+
+                            location.y
+                                + e.getY()
+                                - mouseDown[0].y
+                        );
+                    }
+                }
+            }
+        );
+
+        return titleBar;
     }
 
     private JButton createWindowButton(String iconUrl) {
-    JButton btn = new JButton();
+        JButton btn = new JButton();
 
-    try {
-        ImageIcon original = new ImageIcon(new URL(iconUrl));
+        try {
+            ImageIcon original = new ImageIcon(new URL(iconUrl));
 
-        if (original.getIconWidth() > 0) {
-            Image scaled = original.getImage().getScaledInstance(
-                18, 18, Image.SCALE_SMOOTH
-            );
-            btn.setIcon(new ImageIcon(scaled));
-        } else {
-            System.err.println("Icon failed to load: " + iconUrl);
+            if (original.getIconWidth() > 0) {
+                Image scaled = original.getImage().getScaledInstance(
+                    18, 18, Image.SCALE_SMOOTH
+                );
+                btn.setIcon(new ImageIcon(scaled));
+            } else {
+                System.err.println("Icon failed to load: " + iconUrl);
+            }
+
+        } catch (Exception e) {
+            System.err.println("Could not load icon: " + iconUrl);
+            e.printStackTrace();
         }
 
-    } catch (Exception e) {
-        System.err.println("Could not load icon: " + iconUrl);
-        e.printStackTrace();
-    }
+        btn.setOpaque(false);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setPreferredSize(new Dimension(42, 32));
 
-    btn.setOpaque(false);
-    btn.setContentAreaFilled(false);
-    btn.setBorderPainted(false);
-    btn.setFocusPainted(false);
-    btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-    btn.setPreferredSize(new Dimension(42, 32));
-
-    return btn;
+        return btn;
     }
 }

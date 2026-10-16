@@ -281,6 +281,16 @@ public class QueueMonitoringPanel extends JPanel {
         return combo;
     }
 
+    private void fitComboWidth(JComboBox<String> combo) {
+        FontMetrics fm = combo.getFontMetrics(combo.getFont());
+        int max = 0;
+        for (int i = 0; i < combo.getItemCount(); i++) {
+            max = Math.max(max, fm.stringWidth(combo.getItemAt(i)));
+        }
+        int w = Math.max(140, max + 28 + 32 + 20);
+        combo.setPreferredSize(new Dimension(w, 36));
+    }
+
     private static class ModernComboBoxUI extends BasicComboBoxUI {
         @Override
         protected JButton createArrowButton() {
@@ -563,6 +573,12 @@ public class QueueMonitoringPanel extends JPanel {
         servedByFilter.addItem("All Staff");
         for (String s : staff) servedByFilter.addItem(s);
         if (prevServed != null) servedByFilter.setSelectedItem(prevServed);
+
+        fitComboWidth(statusFilter);
+        fitComboWidth(counterFilter);
+        fitComboWidth(servedByFilter);
+        filterRow.revalidate();
+        filterRow.repaint();
     }
 
     private JButton createOutlineButton(String text) {

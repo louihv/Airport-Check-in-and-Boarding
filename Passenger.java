@@ -17,7 +17,7 @@ public class Passenger {
         this.flightNumber = flightNumber;
         this.baggageInfo = baggageInfo;
         this.ticketNumber = ticketNumber;
-        this.status = "WAITING";
+        this.status = "CHECKED IN";
         this.assignedCounter = 0;
         this.checkInTime = LocalDateTime.now();
     }

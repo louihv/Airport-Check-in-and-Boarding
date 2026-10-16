@@ -1,0 +1,8 @@
+{
+    "java.project.referencedLibraries": [
+        "Airport-Check-in-and-Boarding/lib/svgSalamander-v1.1.1.jar",
+        "lib/**/*.jar",
+        "Airport-Check-in-and-Boarding/lib/core-3.5.3.jar"
+    ],
+    "files.exclude": { "**/*.class": true, "out": true}
+}
